@@ -3,11 +3,21 @@
 
 require './linear_algebra.rb'
 require './similarity.rb'
+require './recommender.rb'
 require 'test/unit'
-include LinearAlgebra, Similarity
-
+include LinearAlgebra, Similarity, ItemToItem
 
 class Tests < Test::Unit::TestCase
+  def test_online_stage
+    ItemToItem.offline_stage("ratings.in", "users.in", "movies.in");
+    recommended_movies1 = ItemToItem.online_stage(1, 1)
+    recommended_movies2 = ItemToItem.online_stage(2, 1)
+    recommended_movies3 = ItemToItem.online_stage(3, 2).sort
+
+    assert_equal([3], recommended_movies1, "The recommended movies are wrong")
+    assert_equal([1], recommended_movies2, "The recommended movies are wrong")
+    assert_equal([], recommended_movies3, "The recommended movies are wrong")
+  end
   def test_dot_product
     val1 = LinearAlgebra.dot_product([1, 2, 3, 4], [5, 1, 2, 3])
     val2 = LinearAlgebra.dot_product([1, 6, 101, 2, 121], [-1, 2, 1, 3, -10007])
