@@ -34,4 +34,17 @@ module Similarity
     return cosine_rule(vec1.map {|x| x - average1},
                        vec2.map {|x| x - average2})
   end
+
+
+  def compute_expected_rating(rating_list, similarity_list)
+    weighted_rating = LinearAlgebra.dot_product(rating_list, similarity_list)
+    total_similarity = 0
+    similarity_list.each {|similarity| total_similarity += similarity}
+    if total_similarity.abs > 1e-9
+    then
+      return weighted_rating / total_similarity
+    else
+      return 0
+    end
+  end
 end
