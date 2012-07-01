@@ -71,6 +71,16 @@ module ItemToItem
       }
     end
   end
+
+  def getting_list_of_ratings(user, number_of_needed_recommendations)
+    potentialy_recommended_movies = []
+    $movies_of_user[user].each{ |movie|
+      potentialy_recommended_movies |= $neighborhood[movie]
+    }
+    potentialy_recommended_movies -= $movies_of_user[user]
+
+    return potentialy_recommended_movies.map {|m| [expected_rating(user, m), m]}
+  end
   def expected_rating(user, movie)
     rated_movies = $movies_of_user[user].clone
     ratings = rated_movies.map {|m| $rated_movies_per_user[[user, m]]}
