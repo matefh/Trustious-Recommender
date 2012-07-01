@@ -81,6 +81,13 @@ module ItemToItem
 
     return potentialy_recommended_movies.map {|m| [expected_rating(user, m), m]}
   end
+
+  def online_stage(user, number_of_needed_recommendations)
+    recommended_movies = getting_list_of_ratings(user, number_of_needed_recommendations)
+    recommended_movies.sort {|x,y| y <=> x }
+    return recommended_movies[0...number_of_needed_recommendations].map {|m| m[1]}
+  end
+
   def expected_rating(user, movie)
     rated_movies = $movies_of_user[user].clone
     ratings = rated_movies.map {|m| $rated_movies_per_user[[user, m]]}
