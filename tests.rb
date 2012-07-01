@@ -131,4 +131,16 @@ class Tests < Test::Unit::TestCase
 
     diff.each {|val| assert(val.abs < 1e-5)}
   end
+
+
+  def test_expected_rating_computation
+    ratings = [[1, 4, -1, 2, 0], [1, 2, 4, 0], [5, 5, 5, 5, 5], [0, 0, 1, -1, 0], []]
+    similarities = [[0.2, 0.1, 0.7, 0, 1], [0.3, -0.2, 0.4, 1], [0.1, 0.1, 0.2, 0.1, 0.1], [0.7, 0.7, 0.5, 0.6, 0.1], []]
+    expected_values = ratings.zip(similarities).map {|param| compute_expected_rating(param[0], param[1])}
+    actual_values = [-0.0499999, 1.0, 5.0, -0.0384615, 0]
+
+    diff = actual_values.zip(expected_values).map {|sim| sim[0] - sim[1]}
+
+    diff.each {|val| assert(val.abs < 1e-5)}
+  end
 end
