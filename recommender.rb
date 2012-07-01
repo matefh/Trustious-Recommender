@@ -71,4 +71,10 @@ module ItemToItem
       }
     end
   end
+  def expected_rating(user, movie)
+    rated_movies = $movies_of_user[user].clone
+    ratings = rated_movies.map {|m| $rated_movies_per_user[[user, m]]}
+    similarities = rated_movies.map {| m| $movies_similarity[movie][m] || 0}
+    return Similarity.compute_expected_rating(ratings, similarities)
+  end
 end
