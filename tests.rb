@@ -8,6 +8,7 @@ require 'test/unit'
 include LinearAlgebra, Similarity, ItemToItem
 
 class Tests < Test::Unit::TestCase
+
   def test_online_stage
     ItemToItem.offline_stage("ratings.in", "users.in", "movies.in");
     recommended_movies1 = ItemToItem.online_stage(1, 1)
@@ -18,6 +19,66 @@ class Tests < Test::Unit::TestCase
     assert_equal([1], recommended_movies2, "The recommended movies are wrong")
     assert_equal([], recommended_movies3, "The recommended movies are wrong")
   end
+
+  def test_n_expected_rating(number_of_ratings = 2000)
+    input = IO.readlines("u.data")
+    hidden_rating = Array.new(input.length) {0}
+    user_movie_pair = Array.new(number_of_ratings) {[]}
+    bad_lines = Array.new(0)
+
+    for i in 0...number_of_ratings
+      random = rand(input.length)
+      line = input[random]
+      line = line.split(" ")
+      user_movie_pair[i] = line.map {|x| x.to_i}
+      hidden_rating[random] = 1
+      bad_lines.push(random)
+    end
+    ItemToItem.offline_stage("u.data", "u.info", bad_lines)
+
+    result_with_rounding = 0
+    result_without_rounding = 0
+    error = Array.new(6) {0}
+    expectations_generated = Array.new(0)
+    user_movie_pair.each{ |test|
+      one_expectation = test.clone
+      rating = ItemToItem.expected_rating(test[0], test[1])
+      result_without_rounding += (rating - test[2]) * (rating - test[2])
+      one_expectation.push(rating)
+      rating = (rating + 0.5).to_i
+      one_expectation.push(rating)
+      result_with_rounding += (rating - test[2]) * (rating - test[2])
+      error[(rating - test[2]).abs] += 1
+      expectations_generated.push(one_expectation)
+    }
+    result_with_rounding = Math.sqrt( result_with_rounding.to_f / number_of_ratings.to_f )
+    result_without_rounding = Math.sqrt( result_without_rounding.to_f / number_of_ratings.to_f )
+    print "Error with rounding = ", result_with_rounding, " " , "Error without rounding = " , result_without_rounding , " ", error.inspect, "\n"
+
+    File.open("Debug Log.txt" , "w") do |out|
+      out.print "Similarity Table:\n","---------------------\n"
+      for i in 1...$number_of_movies
+  for j in 1...$number_of_movies
+    if $movies_similarity[i][j].nil?
+      out.print "nil", " " * 14
+    else
+      out.print "#{sprintf "%15.8f" ,$movies_similarity[i][j]} "
+    end
+  end
+  out.print "\n"
+      end
+      out.print "*" * 100, "\n"
+      for i in 1...$number_of_movies
+  out.print $neighborhood[i].inspect, "\n"
+      end
+      out.print "*" * 100, "\n"
+      expectations_generated.each{ |x|
+  out.print x.inspect, "\n"
+      }
+    end
+
+  end
+
   def test_dot_product
     val1 = LinearAlgebra.dot_product([1, 2, 3, 4], [5, 1, 2, 3])
     val2 = LinearAlgebra.dot_product([1, 6, 101, 2, 121], [-1, 2, 1, 3, -10007])
@@ -143,7 +204,7 @@ class Tests < Test::Unit::TestCase
   end
 
 
-  def test_expected_rating_computation
+  def test_compute_expected_rating
     ratings = [[1, 4, -1, 2, 0], [1, 2, 4, 0], [5, 5, 5, 5, 5], [0, 0, 1, -1, 0], []]
     similarities = [[0.2, 0.1, 0.7, 0, 1], [0.3, -0.2, 0.4, 1], [0.1, 0.1, 0.2, 0.1, 0.1], [0.7, 0.7, 0.5, 0.6, 0.1], []]
     expected_values = ratings.zip(similarities).map {|param| compute_expected_rating(param[0], param[1])}
