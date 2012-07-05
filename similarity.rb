@@ -42,7 +42,7 @@ module Similarity
     similarity_list.each {|similarity| total_similarity += similarity}
     if total_similarity.abs > 1e-9
     then
-      return weighted_rating / total_similarity
+      return weighted_rating.to_f / total_similarity.to_f
     else
       return 0
     end
