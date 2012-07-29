@@ -4,20 +4,17 @@
 require './linear_algebra.rb'
 require './similarity.rb'
 require './recommender.rb'
+require './statistics.rb'
 require 'test/unit'
-include LinearAlgebra, Similarity, ItemToItem
+include LinearAlgebra, Similarity, ItemToItem, Statistics
 
 class Tests < Test::Unit::TestCase
 
   def test_online_stage
-    ItemToItem.offline_stage("ratings.in", "users.in", "movies.in");
+    ItemToItem.offline_stage("ratings.in", "ratings.info", [])
     recommended_movies1 = ItemToItem.online_stage(1, 1)
-    recommended_movies2 = ItemToItem.online_stage(2, 1)
-    recommended_movies3 = ItemToItem.online_stage(3, 2).sort
 
-    assert_equal([3], recommended_movies1, "The recommended movies are wrong")
-    assert_equal([1], recommended_movies2, "The recommended movies are wrong")
-    assert_equal([], recommended_movies3, "The recommended movies are wrong")
+    assert_equal([2], recommended_movies1, "The recommended movies are wrong")
   end
 
   def test_n_expected_rating(number_of_ratings = 2000)
@@ -211,6 +208,39 @@ class Tests < Test::Unit::TestCase
     actual_values = [-0.0499999, 1.0, 5.0, -0.0384615, 0]
 
     diff = actual_values.zip(expected_values).map {|sim| sim[0] - sim[1]}
+
+    diff.each {|val| assert(val.abs < 1e-5)}
+  end
+
+
+  def test_standard_deviation
+    values = [[5, 1, 2, 5, 7], [3, 3, 3, 3], [6, 11, 100, 2, 3], [4, 1, 6], []]
+    actual_std = [2.1908902300206643, 0.0, 37.92940811560339, 2.0548046676563256, 0]
+    expected_std = values.map {|x| Statistics.standard_deviation(x)}
+
+    diff = actual_std.zip(expected_std).map {|sim| sim[0] - sim[1]}
+
+    diff.each {|val| assert(val.abs < 1e-5)}
+  end
+
+
+  def test_variance
+    values = [[5, 1, 2, 5, 7], [3, 3, 3, 3], [6, 11, 100, 2, 3], [4, 1, 6], []]
+    actual_var = [4.8, 0.0, 1438.6399999999999, 4.222222222222222, 0]
+    expected_var = values.map {|x| Statistics.variance(x)}
+
+    diff = actual_var.zip(expected_var).map {|sim| sim[0] - sim[1]}
+
+    diff.each {|val| assert(val.abs < 1e-5)}
+  end
+
+
+  def test_average
+    values = [[5, 1, 2, 5, 7], [3, 3, 3, 3], [6, 11, 100, 2, 3], [4, 1, 6], []]
+    actual_avg = [4, 3, 24.4, 3.6666667, 0]
+    expected_avg = values.map {|x| Statistics.average(x)}
+
+    diff = actual_avg.zip(expected_avg).map {|sim| sim[0] - sim[1]}
 
     diff.each {|val| assert(val.abs < 1e-5)}
   end
