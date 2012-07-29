@@ -36,6 +36,14 @@ module Similarity
   end
 
 
+  def pythagorean_distance(vec1, vec2)
+    pythagorean = 0
+    pythagorean += LinearAlgebra.magnitude_squared(vec1)
+    pythagorean += LinearAlgebra.magnitude_squared(vec2)
+    return 2 * LinearAlgebra.dot_product(vec1, vec1) / pythagorean
+  end
+
+
   def compute_expected_rating(rating_list, similarity_list)
     weighted_rating = LinearAlgebra.dot_product(rating_list, similarity_list)
     total_similarity = 0
