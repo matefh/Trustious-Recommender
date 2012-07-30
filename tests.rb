@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 
-
 require './linear_algebra.rb'
 require './similarity.rb'
 require './recommender.rb'
@@ -9,16 +8,16 @@ include LinearAlgebra, Similarity, ItemToItem
 
 class Tests < Test::Unit::TestCase
 
-  def test_online_stage
-    ItemToItem.offline_stage("ratings.in", "users.in", "movies.in");
-    recommended_movies1 = ItemToItem.online_stage(1, 1)
-    recommended_movies2 = ItemToItem.online_stage(2, 1)
-    recommended_movies3 = ItemToItem.online_stage(3, 2).sort
+ # def test_online_stage
+ #   ItemToItem.offline_stage("ratings.in", "users.in", "movies.in");
+ #   recommended_movies1 = ItemToItem.online_stage(1, 1)
+   # recommended_movies2 = ItemToItem.online_stage(2, 1)
+    #recommended_movies3 = ItemToItem.online_stage(3, 2).sort
 
-    assert_equal([3], recommended_movies1, "The recommended movies are wrong")
-    assert_equal([1], recommended_movies2, "The recommended movies are wrong")
-    assert_equal([], recommended_movies3, "The recommended movies are wrong")
-  end
+   # assert_equal([3], recommended_movies1, "The recommended movies are wrong")
+    #assert_equal([1], recommended_movies2, "The recommended movies are wrong")
+    #assert_equal([], recommended_movies3, "The recommended movies are wrong")
+ # end
 
   def test_n_expected_rating(number_of_ratings = 2000)
     input = IO.readlines("u.data")
@@ -55,27 +54,27 @@ class Tests < Test::Unit::TestCase
     result_without_rounding = Math.sqrt( result_without_rounding.to_f / number_of_ratings.to_f )
     print "Error with rounding = ", result_with_rounding, " " , "Error without rounding = " , result_without_rounding , " ", error.inspect, "\n"
 
-    File.open("Debug Log.txt" , "w") do |out|
-      out.print "Similarity Table:\n","---------------------\n"
-      for i in 1...$number_of_movies
-  for j in 1...$number_of_movies
-    if $movies_similarity[i][j].nil?
-      out.print "nil", " " * 14
-    else
-      out.print "#{sprintf "%15.8f" ,$movies_similarity[i][j]} "
-    end
-  end
-  out.print "\n"
-      end
-      out.print "*" * 100, "\n"
-      for i in 1...$number_of_movies
-  out.print $neighborhood[i].inspect, "\n"
-      end
-      out.print "*" * 100, "\n"
-      expectations_generated.each{ |x|
-  out.print x.inspect, "\n"
-      }
-    end
+    #File.open("Debug Log.txt" , "w") do |out|
+      #out.print "Similarity Table:\n","---------------------\n"
+      #for i in 1...$number_of_movies
+        #for j in 1...$number_of_movies
+          #if $movies_similarity[i][j].nil?
+           # out.print "nil", " " * 14
+          #else
+           # out.print "#{sprintf "%15.8f" ,$movies_similarity[i][j]} "
+          #end
+        #end
+        #out.print "\n"
+       # end
+       # out.print "*" * 100, "\n"
+        #for i in 1...$number_of_movies
+        #out.print $neighborhood[i].inspect, "\n"
+          #  end
+           # out.print "*" * 100, "\n"
+            #expectations_generated.each{ |x|
+              #out.print x.inspect, "\n"
+           # }
+    #end
 
   end
 
