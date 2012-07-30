@@ -85,11 +85,11 @@ class Tests < Test::Unit::TestCase
     val4 = LinearAlgebra.dot_product([10000, 10000, 1000], [0, 0, 0])
     val5 = LinearAlgebra.dot_product([1, 2, 3, 4], [-12, -3, 2, 3])
 
-    assert_equal(val1, 25, "The dot product should be equal to 25.")
-    assert_equal(val2, -1210729, "The dot product should be equal to -1210729")
-    assert_equal(val3, 0, "The vectors are empty.")
-    assert_equal(val4, 0, "One of the vectors is 0.")
-    assert_equal(val5, 0, "The vectors are orthogonal.")
+    assert_equal(25, val1, "The dot product should be equal to 25.")
+    assert_equal(-1210729, val2, "The dot product should be equal to -1210729")
+    assert_equal(0, val3, "The vectors are empty.")
+    assert_equal(0, val4, "One of the vectors is 0.")
+    assert_equal(0, val5, "The vectors are orthogonal.")
   end
 
 
@@ -119,7 +119,7 @@ class Tests < Test::Unit::TestCase
     diff = actual_magnitudes.zip(expected_magnitudes)
     diff.map! {|magnitude| magnitude[0] - magnitude[1]}
 
-    diff.each {|val| assert_equal(val, 0)}
+    diff.each {|val| assert_equal(0, val)}
   end
 
 

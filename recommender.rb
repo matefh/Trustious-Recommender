@@ -96,10 +96,12 @@ module ItemToItem
             vector_movie2[j] = nil
           end
         }
+
         no_nils = vector_movie1.zip(vector_movie2).keep_if {|x|  !(x[0].nil? or x[1].nil?)}
         vector_movie1 = no_nils.map {|x| x[0]}
         vector_movie2 = no_nils.map {|x| x[1]}
-        similarity = Similarity.cosine_rule(vector_movie1, vector_movie2)
+        similarity = calculate_similarity(vector_movie1, vector_movie2)
+        $movies_similarity[movie1][movie2] = similarity
         if similarity > -1e-9
           $movies_similarity[movie1][movie2] = similarity
           if similarity.abs > THRESHOLD
@@ -130,7 +132,7 @@ module ItemToItem
     rated_movies = $movies_of_user[user].clone
     ratings = rated_movies.map {|m| $rated_movies_per_user[[user, m]]}
     similarities = rated_movies.map {| m| $movies_similarity[movie][m] || 0}
-    return Similarity.compute_expected_rating(ratings, similarities)
+    output_rating = Similarity.compute_expected_rating(ratings, similarities)
     #output_rating = (output_rating + 0.5).to_i
     return output_rating
   end
