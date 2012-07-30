@@ -16,6 +16,8 @@ module ItemToItem
     $number_of_users = IO.readlines(file_info)[0].to_i + 1
     $number_of_movies = IO.readlines(file_info)[1].to_i + 1
 
+    $average_user_rating = Array.new($number_of_users) {0}
+    $average_item_rating = Array.new($number_of_movies) {0}
     $movies_similarity = Array.new($number_of_movies) {{}}
     $rated_movies_per_user = Hash.new()
     $movies_of_user = Hash.new() {[]}
@@ -24,7 +26,6 @@ module ItemToItem
     bad_lines_index = 0
     bad_lines = bad_lines.sort()
 
-    input_loop_variable = 0
     input = IO.readlines(file_ratings)
     input.each_index{ |line_index|
       line = input[line_index]
@@ -36,12 +37,30 @@ module ItemToItem
         $movies_of_user[user_ID] += [movie_ID]
         $users_of_movie[movie_ID] += [user_ID]
         $rated_movies_per_user[[user_ID, movie_ID]] = rating
+        $average_item_rating[movie_ID] += rating
+        $average_user_rating[user_ID] += rating
       end
       if line_index == bad_lines[bad_lines_index]
         bad_lines_index += 1
       end
-      input_loop_variable += 1
     }
+
+    for i in 1...$number_of_movies
+      if !$users_of_movie[i].nil?
+        size = $users_of_movie[i].size()
+        if size != 0
+          $average_item_rating[i] /= size
+        end
+      end
+    end
+    for i in 1...$number_of_users
+      if !$movies_of_user[i].nil?
+        size = $movies_of_user[i].size()
+        if size != 0
+          $average_user_rating[i] /= size
+        end
+      end
+    end
 
     $neighborhood = Array.new($number_of_movies) {[]}
 
@@ -83,8 +102,11 @@ module ItemToItem
         vector_movie2 = no_nils.map {|x| x[1]}
         similarity = calculate_similarity(vector_movie1, vector_movie2)
         $movies_similarity[movie1][movie2] = similarity
-        if similarity.abs > THRESHOLD
+        if similarity > -1e-9
+          $movies_similarity[movie1][movie2] = similarity
+          if similarity.abs > THRESHOLD
             $neighborhood[movie1].push(movie2)
+          end
         end
       }
     end
