@@ -6,8 +6,10 @@ include Similarity
 module ItemToItem
 
   THRESHOLD = 0.0001
+  EPSILON = 1e-9
   ITEM_BASED_NORMALIZATION = true
   NORMALIZING_RATINGS = false
+
 
   def calculate_similarity(vec1, vec2)
     return Similarity.cosine_rule(vec1, vec2)
@@ -22,22 +24,30 @@ module ItemToItem
   end
 
   def normalize_rating_z_score(rating, user, movie)
-    # Handling standard deviation equal to zero
     if ITEM_BASED_NORMALIZATION
     then
-      return (rating - $average_item_rating[movie]) / $std_dev_item_rating[movie].to_f
+      if $std_dev_item_rating[movie].abs > EPSILON
+      then
+        return (rating - $average_item_rating[movie]) / $std_dev_item_rating[movie]
+      else
+        return 0
+      end
     else
-      return (rating - $average_user_rating[user]) / $std_dev_user_rating[user].to_f
+      if $std_dev_user_rating[user].abs > EPSILON
+      then
+        return (rating - $average_user_rating[user]) / $std_dev_user_rating[user]
+      else
+        return 0
+      end
     end
   end
 
   def denormalize_rating_z_score(rating, user, movie)
-    # Handling standard deviation equal to zero
     if ITEM_BASED_NORMALIZATION
     then
-      return $average_item_rating[movie] + $std_dev_item_rating[movie].to_f * rating
+      return $average_item_rating[movie] + $std_dev_item_rating[movie] * rating
     else
-      return $average_user_rating[user] + $std_dev_user_rating[user].to_f * rating
+      return $average_user_rating[user] + $std_dev_user_rating[user] * rating
     end
   end
 
@@ -67,6 +77,7 @@ module ItemToItem
       return $rated_movies_per_user[[user, item]]
     end
   end
+
 
   def offline_stage(file_ratings, file_info, bad_lines)
 
@@ -121,7 +132,7 @@ module ItemToItem
     for i in 1...$number_of_users
       if !$movies_of_user[i].nil?
         size = $movies_of_user[i].size
-        if size != 0
+        if size > 0
           $average_user_rating[i] /= size.to_f
           $std_dev_user_rating[i] /= size.to_f
           $std_dev_user_rating[i] -= $average_user_rating[i] * $average_user_rating[i]
@@ -176,7 +187,7 @@ module ItemToItem
         vector_movie2 = no_nils.map {|x| x[1]}
         similarity = calculate_similarity(vector_movie1, vector_movie2)
         $movies_similarity[movie1][movie2] = similarity
-        if similarity > -1e-9
+        if similarity > -EPSILON
           $movies_similarity[movie1][movie2] = similarity
           if similarity.abs > THRESHOLD
             $neighborhood[movie1].push(movie2)
@@ -185,6 +196,7 @@ module ItemToItem
       }
     end
   end
+
 
   def getting_list_of_ratings(user, number_of_needed_recommendations)
     potentialy_recommended_movies = []
@@ -196,11 +208,13 @@ module ItemToItem
     return potentialy_recommended_movies.map {|m| [expected_rating(user, m), m]}
   end
 
+
   def online_stage(user, number_of_needed_recommendations)
     recommended_movies = getting_list_of_ratings(user, number_of_needed_recommendations)
     recommended_movies.sort {|x,y| y <=> x }
     return recommended_movies[0...number_of_needed_recommendations].map {|m| m[1]}
   end
+
 
   def expected_rating(user, movie)
     rated_movies = $movies_of_user[user].clone
