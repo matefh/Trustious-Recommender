@@ -9,12 +9,23 @@ include LinearAlgebra, Similarity, ItemToItem, Statistics
 
 class Tests < Test::Unit::TestCase
 
+  RAND_EXP = 84179
+  RAND_CNST = 61283
+  RAND_MOD = 75134177
+  $rand_rec = 10007
+
+  def my_rand(last)
+    $rand_rec = ($rand_rec * RAND_EXP + RAND_CNST) % RAND_MOD
+    return $rand_rec % last
+  end
+
   def test_online_stage
     ItemToItem.offline_stage("ratings.in", "ratings.info", [])
     recommended_movies1 = ItemToItem.online_stage(1, 1)
 
     assert_equal([2], recommended_movies1, "The recommended movies are wrong")
   end
+
 
   def test_n_expected_rating(number_of_ratings = 2000)
     input = IO.readlines("u.data")
@@ -23,7 +34,7 @@ class Tests < Test::Unit::TestCase
     bad_lines = Array.new(0)
 
     for i in 0...number_of_ratings
-      random = rand(input.length)
+      random = my_rand(input.length)
       line = input[random]
       line = line.split(" ")
       user_movie_pair[i] = line.map {|x| x.to_i}
@@ -75,6 +86,7 @@ class Tests < Test::Unit::TestCase
 
 
   end
+
 
   def test_dot_product
     val1 = LinearAlgebra.dot_product([1, 2, 3, 4], [5, 1, 2, 3])
