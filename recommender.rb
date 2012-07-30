@@ -6,9 +6,66 @@ include Similarity
 module ItemToItem
 
   THRESHOLD = 0.0001
+  ITEM_BASED_NORMALIZATION = true
+  NORMALIZING_RATINGS = false
 
   def calculate_similarity(vec1, vec2)
     return Similarity.cosine_rule(vec1, vec2)
+  end
+
+  def normalize_rating(rating, user, movie)
+    return normalize_rating_mean_centering(rating, user, movie)
+  end
+
+  def denormalize_rating(rating, user, movie)
+    return denormalize_rating_mean_centering(rating, user, movie)
+  end
+
+  def normalize_rating_z_score(rating, user, movie)
+    # Handling standard deviation equal to zero
+    if ITEM_BASED_NORMALIZATION
+    then
+      return (rating - $average_item_rating[movie]) / $std_dev_item_rating[movie].to_f
+    else
+      return (rating - $average_user_rating[user]) / $std_dev_user_rating[user].to_f
+    end
+  end
+
+  def denormalize_rating_z_score(rating, user, movie)
+    # Handling standard deviation equal to zero
+    if ITEM_BASED_NORMALIZATION
+    then
+      return $average_item_rating[movie] + $std_dev_item_rating[movie].to_f * rating
+    else
+      return $average_user_rating[user] + $std_dev_user_rating[user].to_f * rating
+    end
+  end
+
+  def normalize_rating_mean_centering(rating, user, movie)
+    if ITEM_BASED_NORMALIZATION
+    then
+      return rating - $average_item_rating[movie]
+    else
+      return rating - $average_user_rating[user]
+    end
+  end
+
+  def denormalize_rating_mean_centering(rating, user, movie)
+    if ITEM_BASED_NORMALIZATION
+    then
+      return rating + $average_item_rating[movie]
+    else
+      return rating + $average_user_rating[user]
+    end
+  end
+
+  def get_rating(user, item)
+    if NORMALIZING_RATINGS
+    then
+      return $normalized_rating[[user, item]]
+    else
+      return $rated_movies_per_user[[user, item]]
+    end
   end
 
   def offline_stage(file_ratings, file_info, bad_lines)
@@ -18,13 +75,16 @@ module ItemToItem
 
     $average_user_rating = Array.new($number_of_users) {0}
     $average_item_rating = Array.new($number_of_movies) {0}
+    $std_dev_user_rating = Array.new($number_of_users) {0}
+    $std_dev_item_rating = Array.new($number_of_movies) {0}
     $movies_similarity = Array.new($number_of_movies) {{}}
     $rated_movies_per_user = Hash.new()
+    $normalized_rating = Hash.new()
     $movies_of_user = Hash.new() {[]}
     $users_of_movie = Hash.new() {[]}
 
     bad_lines_index = 0
-    bad_lines = bad_lines.sort()
+    bad_lines.sort!
 
     input = IO.readlines(file_ratings)
     input.each_index{ |line_index|
@@ -39,6 +99,8 @@ module ItemToItem
         $rated_movies_per_user[[user_ID, movie_ID]] = rating
         $average_item_rating[movie_ID] += rating
         $average_user_rating[user_ID] += rating
+        $std_dev_item_rating[movie_ID] += rating * rating
+        $std_dev_user_rating[user_ID] += rating * rating
       end
       if line_index == bad_lines[bad_lines_index]
         bad_lines_index += 1
@@ -47,21 +109,33 @@ module ItemToItem
 
     for i in 1...$number_of_movies
       if !$users_of_movie[i].nil?
-        size = $users_of_movie[i].size()
+        size = $users_of_movie[i].size
         if size != 0
-          $average_item_rating[i] /= size
+          $average_item_rating[i] /= size.to_f
+          $std_dev_item_rating[i] /= size.to_f
+          $std_dev_item_rating[i] -= $average_item_rating[i] * $average_item_rating[i]
+          $std_dev_item_rating[i] = Math.sqrt($std_dev_item_rating[i])
         end
       end
     end
     for i in 1...$number_of_users
       if !$movies_of_user[i].nil?
-        size = $movies_of_user[i].size()
+        size = $movies_of_user[i].size
         if size != 0
-          $average_user_rating[i] /= size
+          $average_user_rating[i] /= size.to_f
+          $std_dev_user_rating[i] /= size.to_f
+          $std_dev_user_rating[i] -= $average_user_rating[i] * $average_user_rating[i]
+          $std_dev_user_rating[i] = Math.sqrt($std_dev_user_rating[i])
         end
       end
     end
 
+
+    $rated_movies_per_user.each {|key, value|
+      user = key[0]
+      movie = key[1]
+      $normalized_rating[key] = normalize_rating($rated_movies_per_user[[user, movie]], user, movie)
+    }
     $neighborhood = Array.new($number_of_movies) {[]}
 
     for movie1 in 1...$number_of_movies
@@ -79,7 +153,7 @@ module ItemToItem
 
         vector_movie1.each_index{ |j|
           user = vector_movie1[j]
-          value = $rated_movies_per_user[[user, movie1]].to_f
+          value = get_rating(user, movie1).to_f
           if value != nil
             vector_movie1[j] = value / movie1_user_count
           else
@@ -89,7 +163,7 @@ module ItemToItem
 
         vector_movie2.each_index{ |j|
           user = vector_movie2[j]
-          value = $rated_movies_per_user[[user, movie2]].to_f
+          value = get_rating(user, movie2).to_f
           if value != nil
             vector_movie2[j] = value / movie2_user_count
           else
@@ -130,9 +204,13 @@ module ItemToItem
 
   def expected_rating(user, movie)
     rated_movies = $movies_of_user[user].clone
-    ratings = rated_movies.map {|m| $rated_movies_per_user[[user, m]]}
-    similarities = rated_movies.map {| m| $movies_similarity[movie][m] || 0}
+    ratings = rated_movies.map {|m| get_rating(user, m)}
+    similarities = rated_movies.map {|m| $movies_similarity[movie][m] || 0}
     output_rating = Similarity.compute_expected_rating(ratings, similarities)
+    if NORMALIZING_RATINGS
+    then
+      output_rating = denormalize_rating(output_rating, user, movie)
+    end
     #output_rating = (output_rating + 0.5).to_i
     return output_rating
   end
