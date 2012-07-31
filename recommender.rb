@@ -8,7 +8,7 @@ module ItemToItem
   THRESHOLD = 0.0001
   EPSILON = 1e-9
   ITEM_BASED_NORMALIZATION = true
-  NORMALIZING_RATINGS = false
+  NORMALIZING_RATINGS = true
 
 
   def calculate_similarity(vec1, vec2)
@@ -145,7 +145,7 @@ module ItemToItem
     $rated_movies_per_user.each {|key, value|
       user = key[0]
       movie = key[1]
-      $normalized_rating[key] = normalize_rating($rated_movies_per_user[[user, movie]], user, movie)
+      $normalized_rating[[user, movie]] = normalize_rating($rated_movies_per_user[[user, movie]], user, movie)
     }
     $neighborhood = Array.new($number_of_movies) {[]}
 
