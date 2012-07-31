@@ -47,7 +47,7 @@ module Similarity
   def compute_expected_rating(rating_list, similarity_list)
     weighted_rating = LinearAlgebra.dot_product(rating_list, similarity_list)
     total_similarity = 0
-    similarity_list.each {|similarity| total_similarity += similarity}
+    similarity_list.each {|similarity| total_similarity += similarity.abs}
     if total_similarity.abs > 1e-9
     then
       return weighted_rating.to_f / total_similarity.to_f
