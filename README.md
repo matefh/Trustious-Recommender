@@ -37,4 +37,39 @@ Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [722, 990, 245, 42, 
 Finished in 3770.770888 seconds.
 
 
-11 tests, 45 assertions, 0 failures, 0 errors, 0 skips
+Item-based rating normalization using Z-Score normalization:
+Error with rounding = 0.7286974680894672,
+Error without rounding = 0.66288539198081,
+Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [1135, 805, 58, 1, 1, 0],
+Finished in 3761.289317 seconds.
+
+
+Item-based rating normalization using Mean Centering normalization:
+Error with rounding = 0.7304108432930059,
+Error without rounding = 0.6667065203942877,
+Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [1130, 810, 58, 1, 1, 0],
+Finished in 3726.635309 seconds.
+
+
+User-based rating normalization using Z-Score normalization:
+Error with rounding = 0.7304108432930059,
+Error without rounding = 0.6695138410800626,
+Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [1150, 781, 67, 2, 0, 0],
+Finished in 3618.251631 seconds.
+
+
+User-based rating normalization using Mean Centering normalization:
+Error with rounding = 0.7358668357794091,
+Error without rounding = 0.6729826121518161,
+Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [1133, 800, 64, 3, 0, 0],
+Finished in 3627.349486 seconds.
+
+
+User-based rating normalization using Z-Score normalization, Threshold = 0.001, 0.01, 0.1, 0.2, 0.3:
+Error with rounding = 0.7304108432930059:
+Error without rounding = 0.6695138410800626:
+Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [1150, 781, 67, 2, 0, 0]
+
+
+
+14 tests, 60 assertions, 0 failures, 0 errors, 0 skips
