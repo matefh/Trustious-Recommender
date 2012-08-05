@@ -5,9 +5,9 @@ include Similarity
 
 module ItemToItem
 
-  THRESHOLD = 0.0001
+  THRESHOLD = 0.3
   EPSILON = 1e-9
-  ITEM_BASED_NORMALIZATION = true
+  ITEM_BASED_NORMALIZATION = false
   NORMALIZING_RATINGS = true
 
 
@@ -16,11 +16,11 @@ module ItemToItem
   end
 
   def normalize_rating(rating, user, movie)
-    return normalize_rating_mean_centering(rating, user, movie)
+    return normalize_rating_z_score(rating, user, movie)
   end
 
   def denormalize_rating(rating, user, movie)
-    return denormalize_rating_mean_centering(rating, user, movie)
+    return denormalize_rating_z_score(rating, user, movie)
   end
 
   def normalize_rating_z_score(rating, user, movie)
@@ -186,7 +186,6 @@ module ItemToItem
         vector_movie1 = no_nils.map {|x| x[0]}
         vector_movie2 = no_nils.map {|x| x[1]}
         similarity = calculate_similarity(vector_movie1, vector_movie2)
-        $movies_similarity[movie1][movie2] = similarity
         if similarity > -EPSILON
           $movies_similarity[movie1][movie2] = similarity
           if similarity.abs > THRESHOLD
