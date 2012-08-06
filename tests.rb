@@ -60,7 +60,7 @@ class Tests < Test::Unit::TestCase
     }
     result_with_rounding = Math.sqrt( result_with_rounding.to_f / number_of_ratings.to_f )
     result_without_rounding = Math.sqrt( result_without_rounding.to_f / number_of_ratings.to_f )
-    print "Error with rounding = ", result_with_rounding, " " , "Error without rounding = " , result_without_rounding , " ", error.inspect, "\n"
+    print "Error with rounding = ", result_with_rounding, ",\n" , "Error without rounding = " , result_without_rounding , ",\nNumber of ratings of absolute difference [0, 1, 2, 3, 4, 5] ", error.inspect, ",\n"
 
 #    File.open("Debug Log.txt" , "w") do |out|
 #      out.print "Similarity Table:\n","---------------------\n"
