@@ -2,6 +2,14 @@
 *.rbc
 .bundle
 .config
+*.txt
+*.zip
+*.in
+*.out
+*.info
+*.data
+*.dat
+.gitignore
 coverage
 InstalledFiles
 lib/bundler/man
