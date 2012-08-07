@@ -79,44 +79,9 @@ module ItemToItem
   end
 
 
-  def offline_stage(file_ratings, file_info, bad_lines)
+  def offline_stage(infile)
 
-    $number_of_users = IO.readlines(file_info)[0].to_i + 1
-    $number_of_movies = IO.readlines(file_info)[1].to_i + 1
-
-    $average_user_rating = Array.new($number_of_users) {0}
-    $average_item_rating = Array.new($number_of_movies) {0}
-    $std_dev_user_rating = Array.new($number_of_users) {0}
-    $std_dev_item_rating = Array.new($number_of_movies) {0}
-    $movies_similarity = Array.new($number_of_movies) {{}}
-    $rated_movies_per_user = Hash.new()
-    $normalized_rating = Hash.new()
-    $movies_of_user = Hash.new() {[]}
-    $users_of_movie = Hash.new() {[]}
-
-    bad_lines_index = 0
-    bad_lines.sort!
-
-    input = IO.readlines(file_ratings)
-    input.each_index{ |line_index|
-      line = input[line_index]
-      if line_index != bad_lines[bad_lines_index]
-        line = line.split(" ")
-        user_ID = Integer(line[0])
-        movie_ID = Integer(line[1])
-        rating = Integer(line[2])
-        $movies_of_user[user_ID] += [movie_ID]
-        $users_of_movie[movie_ID] += [user_ID]
-        $rated_movies_per_user[[user_ID, movie_ID]] = rating
-        $average_item_rating[movie_ID] += rating
-        $average_user_rating[user_ID] += rating
-        $std_dev_item_rating[movie_ID] += rating * rating
-        $std_dev_user_rating[user_ID] += rating * rating
-      end
-      if line_index == bad_lines[bad_lines_index]
-        bad_lines_index += 1
-      end
-    }
+    Input.read_ratings(infile)
 
     for i in 1...$number_of_movies
       if !$users_of_movie[i].nil?
@@ -147,7 +112,6 @@ module ItemToItem
       movie = key[1]
       $normalized_rating[[user, movie]] = normalize_rating($rated_movies_per_user[[user, movie]], user, movie)
     }
-    $neighborhood = Array.new($number_of_movies) {[]}
 
     for movie1 in 1...$number_of_movies
       similar_movies = Array.new(0)
