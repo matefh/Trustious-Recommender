@@ -9,6 +9,8 @@
 *.info
 *.data
 *.dat
+*.swp
+*.swo
 .gitignore
 coverage
 InstalledFiles
