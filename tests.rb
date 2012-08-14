@@ -48,6 +48,42 @@ class Tests < Test::Unit::TestCase
 =end
 
 
+  def test_cross_validation(infile = "u.data", folds = 5)
+    seperator = "-----------------------------"
+    input_lines = File.open(infile, "r").readlines
+    n_users = input_lines[0].split(" ")[0].to_i
+    n_items = input_lines[0].split(" ")[1].to_i
+    n_ratings = input_lines.size - 1
+    result = [0.0, 0.0]
+    taken = 0
+    for test_index in 1..folds
+      ratings_to_take = (n_ratings - taken) / (folds + 1 - test_index)
+      printf "Fold Size : %d\n", ratings_to_take
+      train_file = File.open("training_set.data", "w")
+      test_file = File.open("test_set.data", "w")
+      train_file.print n_users, " ", n_items
+      for rating_index in 1..n_ratings
+        if rating_index < taken + 1 or rating_index > taken + ratings_to_take
+          train_file.print input_lines[rating_index]
+        else
+          test_file.print input_lines[rating_index]
+        end
+      end
+      train_file.close
+      test_file.close
+      taken = taken + ratings_to_take
+      printf "\nTest Number: %d\n%s\n", test_index, seperator
+      test_result = test_n_expected_rating("training_set.data", "test_set.data")
+      printf "%s\n", seperator
+      result[0] = result[0] + test_result[0]
+      result[1] = result[1] + test_result[1]
+    end
+    result[0] = result[0] / folds.to_f
+    result[1] = result[1] / folds.to_f
+    printf "Average Error for the cross validation testing\n%s\nError with rounding = %f,\nError without rounding = %f\n%s\n", seperator, result[1], result[0], seperator
+    printf "%d-fold Cross Validation Ended\n\n", folds
+  end
+
   def test_n_expected_rating(train_file = "train.data", test_file = "test.data")
     if TEST_USERBASED
     then
@@ -85,6 +121,10 @@ class Tests < Test::Unit::TestCase
     result_with_rounding = Math.sqrt( result_with_rounding.to_f / expectations_generated.size.to_f )
     result_without_rounding = Math.sqrt( result_without_rounding.to_f / expectations_generated.size.to_f )
     print "Error with rounding = ", result_with_rounding, ",\n" , "Error without rounding = " , result_without_rounding , ",\nNumber of ratings of absolute difference [0, 1, 2, 3, 4, 5] ", error.inspect, ",\n"
+    sm = 0
+    error.each {|x| sm += x}
+    printf "error sum %d", sm
+    return [result_without_rounding, result_with_rounding]
   end
 
 
