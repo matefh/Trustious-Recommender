@@ -35,7 +35,7 @@ module Input
 
 
   def read_precomputed_itembased_data
-    File.open("Precomputed_data.txt", "r").each_line{ |line|
+    File.open("Precomputed_item_data.txt", "r").each_line{ |line|
       parse = line.split(" ")
       if parse[0] == 'S'
         movie1 = parse[1].to_i
@@ -113,10 +113,10 @@ module Input
 
   def precompute_itembased(infile)
     ItemToItem.offline_stage_itembased(infile)
-    File.open("Precomputed_data.txt", "w") do |out|
+    File.open("Precomputed_item_data.txt", "w") do |out|
       for movie1 in 1...$number_of_movies
         $movies_similarity[movie1].each_key{ |movie2|
-          out.print sprintf "S %d %d %lf\n", movie1, movie2, $movies_similarity[movie1][movie2]
+          out.printf "S %d %d %f\n", movie1, movie2, $movies_similarity[movie1][movie2]
         }
       end
     end
@@ -130,7 +130,7 @@ module Input
     File.open("Precomputed_user_data.txt", "w") do |out|
       for user1 in 1...$number_of_users
         $users_similarity[user1].each_key { |user2|
-          out.print sprintf "S %d %d %f\n", user1, user2, $users_similarity[user1][user2]
+          out.printf "S %d %d %f\n", user1, user2, $users_similarity[user1][user2]
         }
       end
     end
