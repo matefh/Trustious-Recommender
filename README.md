@@ -71,5 +71,17 @@ Error without rounding = 0.6695138410800626:
 Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [1150, 781, 67, 2, 0, 0]
 
 
+User-based rating normalization using Z-Score normalization, Threshold = 0.5
+Error with rounding = 0.7459892760623306,
+Error without rounding = 0.6776399885878681,
+Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [1115, 814, 68, 3, 0, 0],
+Finished in 3444.459440 seconds.
+
+
+User-based rating normalization, using Z-Score normalization, Threshold = 0.1, Pearson's coefficient
+Error with rounding = 0.9348796714016194,
+Error without rounding = 0.8813904555271987,
+Number of ratings of absolute difference [0, 1, 2, 3, 4, 5] [877, 938, 171, 14, 0, 0],
+Finished in 3874.737094 seconds.
 
 14 tests, 60 assertions, 0 failures, 0 errors, 0 skips
