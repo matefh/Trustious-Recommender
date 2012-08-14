@@ -7,6 +7,7 @@ module Input
 
   $itembased_precomputed = false
   $userbased_precomputed = false
+  Hashed_Data = true
 
   def set_itembased_precomputed(x)
     $itembased_precomputed = x
@@ -58,12 +59,52 @@ module Input
   end
 
 
-  def read_ratings(infile)
+  def read_ratings(infile, users_names = "users.data", movies_names = "movies.data")
     lines_of_input = IO.readlines(infile)
+    if Hashed_Data
+    then
+      $users_hash = Hash.new
+      $movies_hash = Hash.new
+      # Hash String -> Int id
+      lines_of_input.each_index { |ind|
+        if ind > 0
+          line_data = lines_of_input[ind].split(" ")
+          user, movie, rating = lines_of_input[ind].split(" ")
+          if not $users_hash.keys.include? user
+            $users_hash[user] = $users_hash.size + 1
+          end
+          if not $movies_hash.keys.include? movie
+            $movies_hash[movie] = $movies_hash.size + 1
+          end
+          lines_of_input[ind] = sprintf "%s %s %d\n", $users_hash[user], $movies_hash[movie], rating
+        end
+      }
+      $users_names = Hash.new
+      $movies_names = Hash.new
+      IO.readlines(users_names).each { |line|
+        hash, name = line.split(" ")
+        id = $users_hash[hash]
+        $users_names[id] = name
+      }
+      IO.readlines(movies_names).each { |line|
+        hash, name = line.split(" ")
+        id = $movies_hash[hash]
+        $movies_names[id] = name
+      }
+    end
+    q = $users_hash.values - $users_names.keys
+    m = Hash.new
+    w = $users_hash.to_a
+    w.each{|x| m[x[1]] = x[0]}
+    for w in q
+      puts m[w]
+    end
+
     $number_of_users = lines_of_input[0].split(" ")[0].to_i + 1
     $number_of_movies = lines_of_input[0].split(" ")[1].to_i + 1
     init
 
+    printf "%d %d : %d %d\n", $users_hash.size, $movies_hash.size, $number_of_users, $number_of_movies
     lines_of_input.each_index{ |line_index|
       if line_index > 0
         line = lines_of_input[line_index].split(" ")
@@ -116,7 +157,12 @@ module Input
     File.open("Precomputed_item_data.txt", "w") do |out|
       for movie1 in 1...$number_of_movies
         $movies_similarity[movie1].each_key{ |movie2|
-          out.printf "S %d %d %f\n", movie1, movie2, $movies_similarity[movie1][movie2]
+          if Hashed_Data
+          then
+            out.printf "S %s %s %f\n", $movies_names[movie1], $movies_names[movie2], $movies_similarity[movie1][movie2]
+          else
+            out.printf "S %d %d %f\n", movie1, movie2, $movies_similarity[movie1][movie2]
+          end
         }
       end
     end
@@ -130,7 +176,12 @@ module Input
     File.open("Precomputed_user_data.txt", "w") do |out|
       for user1 in 1...$number_of_users
         $users_similarity[user1].each_key { |user2|
-          out.printf "S %d %d %f\n", user1, user2, $users_similarity[user1][user2]
+          if Hashed_Data
+          then
+            out.printf "S %s %s %f\n", $users_names[user1], $users_names[user2], $users_similarity[user1][user2]
+          else
+            out.printf "S %d %d %f\n", user1, user2, $users_similarity[user1][user2]
+          end
         }
       end
     end
