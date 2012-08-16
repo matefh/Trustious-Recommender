@@ -23,17 +23,6 @@ class Tests < Test::Unit::TestCase
   end
 
 
-=begin
-  def test_precomputation
-    if TEST_USERBASED
-    then
-      Input.precompute_userbased('train.data')
-    else
-      Input.precompute_itembased('train.data')
-    end
-  end
-
-
   def test_online_stage
     if TEST_USERBASED
     then
@@ -43,12 +32,23 @@ class Tests < Test::Unit::TestCase
       ItemToItem.offline_stage_itembased("sample.data")
       recommended_movies1 = ItemToItem.online_stage_itembased(1, 1)
     end
-    assert_equal([2], recommended_movies1, "The recommended movies are wrong")
+    assert_equal([5], recommended_movies1, "The recommended movies are wrong")
+  end
+
+
+=begin
+  def test_precomputation
+    if TEST_USERBASED
+    then
+      Input.precompute_userbased('train.data')
+    else
+      Input.precompute_itembased('train.data')
+    end
   end
 =end
 
 
-  def test_cross_validation(infile = "u.data", folds = 5)
+  def test_cross_validation(infile = "train.data", folds = 5)
     seperator = "-----------------------------"
     input_lines = File.open(infile, "r").readlines
     n_users = input_lines[0].split(" ")[0].to_i
@@ -58,7 +58,6 @@ class Tests < Test::Unit::TestCase
     taken = 0
     for test_index in 1..folds
       ratings_to_take = (n_ratings - taken) / (folds + 1 - test_index)
-      printf "Fold Size : %d\n", ratings_to_take
       train_file = File.open("training_set.data", "w")
       test_file = File.open("test_set.data", "w")
       train_file.print n_users, " ", n_items
@@ -72,7 +71,7 @@ class Tests < Test::Unit::TestCase
       train_file.close
       test_file.close
       taken = taken + ratings_to_take
-      printf "\nTest Number: %d\n%s\n", test_index, seperator
+      printf "\nTest Number: %d, Fold Size : %d\n%s\n", test_index, ratings_to_take, seperator
       test_result = test_n_expected_rating("training_set.data", "test_set.data")
       printf "%s\n", seperator
       result[0] = result[0] + test_result[0]
@@ -83,6 +82,7 @@ class Tests < Test::Unit::TestCase
     printf "Average Error for the cross validation testing\n%s\nError with rounding = %f,\nError without rounding = %f\n%s\n", seperator, result[1], result[0], seperator
     printf "%d-fold Cross Validation Ended\n\n", folds
   end
+
 
   def test_n_expected_rating(train_file = "train.data", test_file = "test.data")
     if TEST_USERBASED
@@ -120,7 +120,11 @@ class Tests < Test::Unit::TestCase
     }
     result_with_rounding = Math.sqrt( result_with_rounding.to_f / expectations_generated.size.to_f )
     result_without_rounding = Math.sqrt( result_without_rounding.to_f / expectations_generated.size.to_f )
-    print "Error with rounding = ", result_with_rounding, ",\n" , "Error without rounding = " , result_without_rounding , ",\nNumber of ratings of absolute difference [0, 1, 2, 3, 4, 5] ", error.inspect, ",\n"
+    #print "Error with rounding = ", result_with_rounding, ",\n" , "Error without rounding = " , result_without_rounding , ",\nNumber of ratings of absolute difference [0, 1, 2, 3, 4, 5] ", error.inspect, ",\n"
+    printf "\nError with rounding = %s,\nError without rounding = %s,
+            \nNumber of ratings of absolute differences %s %s\n",
+            result_with_rounding.to_s, result_without_rounding.to_s,
+            [0, 1, 2, 3, 4, 5].inspect, error.inspect
     return [result_without_rounding, result_with_rounding]
   end
 

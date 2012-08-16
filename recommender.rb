@@ -35,6 +35,7 @@ module ItemToItem
           similarity = calculate_similarity(movie1_ratings, movie2_ratings)
           similarity *= [$alpha, common_users.size].min / $alpha.to_f
           if similarity > -EPSILON
+          then
             $movies_similarity[movie1][movie2] = similarity
             if similarity.abs > $threshold
               $movies_neighborhood[movie1].push(movie2)
@@ -49,9 +50,9 @@ module ItemToItem
   def online_stage_itembased(user, number_of_needed_recommendations)
     recommended_movies = Array.new
     $movies_of_user[user].each {|movie| recommended_movies |= $movies_neighborhood[movie]}
-    recommended_movies -= $movies_neighborhood[user]
-    recommended_movies.map {|m| [expected_rating_itembased(user, m), m]}
-    recommended_movies.sort {|x,y| y <=> x }
+    recommended_movies -= $movies_of_user[user]
+    recommended_movies.map! {|m| [expected_rating_itembased(user, m), m]}
+    recommended_movies.sort! {|x,y| y <=> x}
     return recommended_movies[0...number_of_needed_recommendations].map {|m| m[1]}
   end
 
@@ -121,8 +122,8 @@ module UserToUser
     recommended_movies = Array.new
     $users_neighborhood[user].each {|v| recommended_movies |= $movies_of_user[v]}
     recommended_movies -= $movies_of_user[user]
-    recommended_movies.map {|movie| [expected_rating_userbased(user, movie), movie]}
-    recommended_movies.sort {|x,y| y <=> x}
+    recommended_movies.map! {|movie| [expected_rating_userbased(user, movie), movie]}
+    recommended_movies.sort! {|x,y| y <=> x}
     return recommended_movies[0...number_of_needed_recommendations].map {|x| x[1]}
   end
 
