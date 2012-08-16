@@ -8,6 +8,7 @@ module Input
   $itembased_precomputed = false
   $userbased_precomputed = false
   Hashed_Data = true
+  DEBUG = false
 
   def set_itembased_precomputed(x)
     $itembased_precomputed = x
@@ -65,7 +66,6 @@ module Input
     then
       $users_hash = Hash.new
       $movies_hash = Hash.new
-      # Hash String -> Int id
       lines_of_input.each_index { |ind|
         if ind > 0
           line_data = lines_of_input[ind].split(" ")
@@ -92,19 +92,11 @@ module Input
         $movies_names[id] = name
       }
     end
-    q = $users_hash.values - $users_names.keys
-    m = Hash.new
-    w = $users_hash.to_a
-    w.each{|x| m[x[1]] = x[0]}
-    for w in q
-      puts m[w]
-    end
 
     $number_of_users = lines_of_input[0].split(" ")[0].to_i + 1
     $number_of_movies = lines_of_input[0].split(" ")[1].to_i + 1
     init
 
-    printf "%d %d : %d %d\n", $users_hash.size, $movies_hash.size, $number_of_users, $number_of_movies
     lines_of_input.each_index{ |line_index|
       if line_index > 0
         line = lines_of_input[line_index].split(" ")
@@ -168,6 +160,23 @@ module Input
     end
 
     $itembased_precomputed = true
+    if DEBUG
+    then
+      File.open("debug_similar_items.txt", "w") do |out|
+        for movie1 in 1...$number_of_movies
+          $movies_similarity[movie1].each_key { |movie2|
+            if $movies_similarity[movie1][movie2] > 0.99
+            then
+              common_users = $users_of_movie[movie1] | $movies_of_user[movie2]
+              rate1 = common_users.map {|user| get_rating(user, movie1)}
+              rate2 = common_users.map {|user| get_rating(user, movie2)}
+              com = ($users_of_movie[movie1] & $users_of_movie[movie2]).size
+              out.printf "sim(%d, %d) = %f, %d are common\n%d %s\n%d %s\n\n", movie1, movie2, $movies_similarity[movie1][movie2], com, movie1, rate1, movie2, rate2
+            end
+          }
+        end
+      end
+    end
   end
 
 
@@ -187,5 +196,22 @@ module Input
     end
 
     $userbased_precomputed = true
+    if DEBUG
+    then
+      File.open("debug_similar_users.txt", "w") do |out|
+        for user1 in 1...$number_of_users
+          $users_similarity[user1].each_key { |user2|
+            if $users_similarity[user1][user2] > 0.99
+            then
+              common_movies = $movies_of_user[user1] | $movies_of_user[user2]
+              rate1 = common_movies.map {|movie| get_rating(user1, movie)}
+              rate2 = common_movies.map {|movie| get_rating(user2, movie)}
+              com = ($movies_of_user[user1] & $movies_of_user[user2]).size
+              out.printf "sim(%d, %d) = %f, %d are common\n%d %s\n%d %s\n\n", user1, user2, $users_similarity[user1][user2], com, user1, rate1, user2, rate2
+            end
+          }
+        end
+      end
+    end
   end
 end

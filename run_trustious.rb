@@ -5,7 +5,6 @@ require './similarity.rb'
 require './recommender.rb'
 require './statistics.rb'
 require './input.rb'
-require 'test/unit'
 include LinearAlgebra, Similarity, ItemToItem, Statistics, Input, UserToUser
 
 

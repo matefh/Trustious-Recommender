@@ -7,7 +7,7 @@ module LinearAlgebra
     if weight.nil?
       weight = [1] * vec1.size
     end
-    zipped_vector = vec1.zip(vec2, weight)
+    zipped_vector = weight.zip(vec1, vec2)
     for elem in zipped_vector
       prod_result = 1
       elem.each {|x| prod_result *= x}

@@ -1,9 +1,12 @@
 #!/usr/bin/env ruby
 
+require './similarity'
+include Similarity
+
 module Normalizer
 
-  EPSILON = 1e-9
   $threshold = 0.3
+  $alpha = 1
   $item_based_normalization = false
   $normalizing_rating = true
 
@@ -19,6 +22,11 @@ module Normalizer
 
   def set_normalization_type(x)
     $item_based_normalization = x
+  end
+
+
+  def set_alpha(x)
+    $alpha = x
   end
 
 
@@ -93,6 +101,19 @@ module Normalizer
 
 
   def calculate_similarity(vec1, vec2, weight=nil)
-    return Similarity.cosine_rule(vec1, vec2, weight)
+    return cosine_rule(vec1, vec2, weight)
+  end
+
+
+  def compute_expected_rating(rating_list, similarity_list)
+    weighted_rating = dot_product(rating_list, similarity_list)
+    total_similarity = 0
+    similarity_list.each {|similarity| total_similarity += similarity.abs}
+    if total_similarity.abs > EPSILON
+    then
+      return weighted_rating.to_f / total_similarity.to_f
+    else
+      return 0
+    end
   end
 end

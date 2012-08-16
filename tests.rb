@@ -121,9 +121,6 @@ class Tests < Test::Unit::TestCase
     result_with_rounding = Math.sqrt( result_with_rounding.to_f / expectations_generated.size.to_f )
     result_without_rounding = Math.sqrt( result_without_rounding.to_f / expectations_generated.size.to_f )
     print "Error with rounding = ", result_with_rounding, ",\n" , "Error without rounding = " , result_without_rounding , ",\nNumber of ratings of absolute difference [0, 1, 2, 3, 4, 5] ", error.inspect, ",\n"
-    sm = 0
-    error.each {|x| sm += x}
-    printf "error sum %d", sm
     return [result_without_rounding, result_with_rounding]
   end
 
