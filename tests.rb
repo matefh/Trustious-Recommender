@@ -50,7 +50,7 @@ class Tests < Test::Unit::TestCase
 
   def test_cross_validation(infile = "train.data", folds = 5)
     seperator = "-----------------------------"
-    input_lines = File.open(infile, "r").readlines
+    input_lines = IO.readlines(infile)
     n_users = input_lines[0].split(" ")[0].to_i
     n_items = input_lines[0].split(" ")[1].to_i
     n_ratings = input_lines.size - 1
@@ -59,8 +59,8 @@ class Tests < Test::Unit::TestCase
     for test_index in 1..folds
       ratings_to_take = (n_ratings - taken) / (folds + 1 - test_index)
       train_file = File.open("training_set.data", "w")
-      test_file = File.open("test_set.data", "w")
-      train_file.print n_users, " ", n_items
+      test_file = File.open("testing_set.data", "w")
+      train_file.printf "%d %d\n",  n_users, n_items
       for rating_index in 1..n_ratings
         if rating_index < taken + 1 or rating_index > taken + ratings_to_take
           train_file.print input_lines[rating_index]
@@ -72,14 +72,17 @@ class Tests < Test::Unit::TestCase
       test_file.close
       taken = taken + ratings_to_take
       printf "\nTest Number: %d, Fold Size : %d\n%s\n", test_index, ratings_to_take, seperator
-      test_result = test_n_expected_rating("training_set.data", "test_set.data")
+      test_result = test_n_expected_rating("training_set.data", "testing_set.data")
       printf "%s\n", seperator
       result[0] = result[0] + test_result[0]
       result[1] = result[1] + test_result[1]
     end
+    assert_equal(n_ratings, taken)
+    File.delete "training_set.data"
+    File.delete "testing_set.data"
     result[0] = result[0] / folds.to_f
     result[1] = result[1] / folds.to_f
-    printf "Average Error for the cross validation testing\n%s\nError with rounding = %f,\nError without rounding = %f\n%s\n", seperator, result[1], result[0], seperator
+    printf "\n\nAverage Error for the cross validation testing\n%s\nError with rounding = %f,\nError without rounding = %f\n%s\n", seperator, result[1], result[0], seperator
     printf "%d-fold Cross Validation Ended\n\n", folds
   end
 
