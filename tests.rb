@@ -24,28 +24,37 @@ class Tests < Test::Unit::TestCase
 
 
   def test_online_stage
+    set_alpha(2)
     if TEST_USERBASED
     then
       UserToUser.offline_stage_userbased("sample.data")
-      recommended_movies1 = UserToUser.online_stage_userbased(1, 1)
+      recommended_movies = UserToUser.online_stage_userbased(1, 1)
+      error = sprintf "%s\n%s\n", $users_neighborhood.inspect, $users_similarity.inspect
     else
       ItemToItem.offline_stage_itembased("sample.data")
-      recommended_movies1 = ItemToItem.online_stage_itembased(1, 1)
+      recommended_movies = ItemToItem.online_stage_itembased(1, 1)
+      error = sprintf "%s\n%s\n", $movies_neighborhood.inspect, $movies_similarity.inspect
     end
-    assert_equal([5], recommended_movies1, "The recommended movies are wrong")
+    assert_equal([5], recommended_movies, error)
   end
 
 
-=begin
   def test_precomputation
     if TEST_USERBASED
     then
       Input.precompute_userbased('train.data')
+      total_size = 0
+      $users_similarity.each {|adj| total_size += adj.size}
+      assert_equal(total_size, IO.readlines('Precomputed_user_data.txt').size)
+      assert(File.delete('Precomputed_user_data.txt'))
     else
       Input.precompute_itembased('train.data')
+      total_size = 0
+      $movies_similarity.each {|adj| total_size += adj.size}
+      assert_equal(total_size, IO.readlines('Precomputed_item_data.txt').size)
+      assert(File.delete('Precomputed_item_data.txt'))
     end
   end
-=end
 
 
   def test_cross_validation(infile = "train.data", folds = 5)
@@ -97,7 +106,7 @@ class Tests < Test::Unit::TestCase
 
     result_with_rounding = 0
     result_without_rounding = 0
-    error = Array.new(6) {0}
+    error = Array.new(8) {0}
     expectations_generated = Array.new(0)
     File.open(test_file, "r").each_line{ |line|
       parse = line.split(" ")
@@ -127,7 +136,7 @@ class Tests < Test::Unit::TestCase
     printf "\nError with rounding = %s,\nError without rounding = %s,
             \nNumber of ratings of absolute differences %s %s\n",
             result_with_rounding.to_s, result_without_rounding.to_s,
-            [0, 1, 2, 3, 4, 5].inspect, error.inspect
+            Array(0...error.size).inspect, error.inspect
     return [result_without_rounding, result_with_rounding]
   end
 
