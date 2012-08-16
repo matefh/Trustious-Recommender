@@ -4,8 +4,9 @@ require './linear_algebra.rb'
 require './similarity.rb'
 require './recommender.rb'
 require './statistics.rb'
+require './input.rb'
 require 'test/unit'
-include LinearAlgebra, Similarity, ItemToItem, Statistics
+include LinearAlgebra, Similarity, ItemToItem, Statistics, Input, UserToUser
 
 class Tests < Test::Unit::TestCase
 
@@ -13,78 +14,121 @@ class Tests < Test::Unit::TestCase
   RAND_CNST = 61283
   RAND_MOD = 75134177
   $rand_rec = 10007
+  TEST_USERBASED = true
+
 
   def my_rand(last)
     $rand_rec = ($rand_rec * RAND_EXP + RAND_CNST) % RAND_MOD
     return $rand_rec % last
   end
 
-  def test_online_stage
-    ItemToItem.offline_stage("ratings.in", "ratings.info", [])
-    recommended_movies1 = ItemToItem.online_stage(1, 1)
 
-    assert_equal([2], recommended_movies1, "The recommended movies are wrong")
+  def test_online_stage
+    if TEST_USERBASED
+    then
+      UserToUser.offline_stage_userbased("sample.data")
+      recommended_movies1 = UserToUser.online_stage_userbased(1, 1)
+    else
+      ItemToItem.offline_stage_itembased("sample.data")
+      recommended_movies1 = ItemToItem.online_stage_itembased(1, 1)
+    end
+    assert_equal([5], recommended_movies1, "The recommended movies are wrong")
   end
 
 
-  def test_n_expected_rating(number_of_ratings = 2000)
-    input = IO.readlines("u.data")
-    hidden_rating = Array.new(input.length) {0}
-    user_movie_pair = Array.new(number_of_ratings) {[]}
-    bad_lines = Array.new(0)
-
-    for i in 0...number_of_ratings
-      random = my_rand(input.length)
-      line = input[random]
-      line = line.split(" ")
-      user_movie_pair[i] = line.map {|x| x.to_i}
-      hidden_rating[random] = 1
-      bad_lines.push(random)
+=begin
+  def test_precomputation
+    if TEST_USERBASED
+    then
+      Input.precompute_userbased('train.data')
+    else
+      Input.precompute_itembased('train.data')
     end
-    ItemToItem.offline_stage("u.data", "u.info", bad_lines)
+  end
+=end
+
+
+  def test_cross_validation(infile = "train.data", folds = 5)
+    seperator = "-----------------------------"
+    input_lines = IO.readlines(infile)
+    n_users = input_lines[0].split(" ")[0].to_i
+    n_items = input_lines[0].split(" ")[1].to_i
+    n_ratings = input_lines.size - 1
+    result = [0.0, 0.0]
+    taken = 0
+    for test_index in 1..folds
+      ratings_to_take = (n_ratings - taken) / (folds + 1 - test_index)
+      train_file = File.open("training_set.data", "w")
+      test_file = File.open("testing_set.data", "w")
+      train_file.printf "%d %d\n",  n_users, n_items
+      for rating_index in 1..n_ratings
+        if rating_index < taken + 1 or rating_index > taken + ratings_to_take
+          train_file.print input_lines[rating_index]
+        else
+          test_file.print input_lines[rating_index]
+        end
+      end
+      train_file.close
+      test_file.close
+      taken = taken + ratings_to_take
+      printf "\nTest Number: %d, Fold Size : %d\n%s\n", test_index, ratings_to_take, seperator
+      test_result = test_n_expected_rating("training_set.data", "testing_set.data")
+      printf "%s\n", seperator
+      result[0] = result[0] + test_result[0]
+      result[1] = result[1] + test_result[1]
+    end
+    assert_equal(n_ratings, taken)
+    File.delete "training_set.data"
+    File.delete "testing_set.data"
+    result[0] = result[0] / folds.to_f
+    result[1] = result[1] / folds.to_f
+    printf "\n\nAverage Error for the cross validation testing\n%s\nError with rounding = %f,\nError without rounding = %f\n%s\n", seperator, result[1], result[0], seperator
+    printf "%d-fold Cross Validation Ended\n\n", folds
+  end
+
+
+  def test_n_expected_rating(train_file = "train.data", test_file = "test.data")
+    if TEST_USERBASED
+    then
+      UserToUser.offline_stage_userbased(train_file)
+    else
+      ItemToItem.offline_stage_itembased(train_file)
+    end
 
     result_with_rounding = 0
     result_without_rounding = 0
     error = Array.new(6) {0}
     expectations_generated = Array.new(0)
-    user_movie_pair.each{ |test|
-      one_expectation = test.clone
-      rating = ItemToItem.expected_rating(test[0], test[1])
-      result_without_rounding += (rating - test[2]) * (rating - test[2])
+    File.open(test_file, "r").each_line{ |line|
+      parse = line.split(" ")
+      user = parse[0].to_i
+      movie = parse[1].to_i
+      correct_rating = parse[2].to_i
+
+      one_expectation = [user, movie]
+      one_expectation.push(correct_rating)
+      if TEST_USERBASED
+      then
+        rating = UserToUser.expected_rating_userbased(user, movie)
+      else
+        rating = ItemToItem.expected_rating_itembased(user, movie)
+      end
+      result_without_rounding += (rating - correct_rating) * (rating - correct_rating)
       one_expectation.push(rating)
       rating = (rating + 0.5).to_i
       one_expectation.push(rating)
-      result_with_rounding += (rating - test[2]) * (rating - test[2])
-      error[(rating - test[2]).abs] += 1
+      result_with_rounding += (rating - correct_rating) * (rating - correct_rating)
+      error[(rating - correct_rating).abs] += 1
       expectations_generated.push(one_expectation)
     }
-    result_with_rounding = Math.sqrt( result_with_rounding.to_f / number_of_ratings.to_f )
-    result_without_rounding = Math.sqrt( result_without_rounding.to_f / number_of_ratings.to_f )
-    print "Error with rounding = ", result_with_rounding, ",\n" , "Error without rounding = " , result_without_rounding , ",\nNumber of ratings of absolute difference [0, 1, 2, 3, 4, 5] ", error.inspect, ",\n"
-
-#    File.open("Debug Log.txt" , "w") do |out|
-#      out.print "Similarity Table:\n","---------------------\n"
-#      for i in 1...$number_of_movies
-#        for j in 1...$number_of_movies
-#          if $movies_similarity[i][j].nil?
-#            out.print "nil", " " * 14
-#          else
-#            out.print "#{sprintf "%15.8f" ,$movies_similarity[i][j]} "
-#          end
-#        end
-#        out.print "\n"
-#      end
-#      out.print "*" * 100, "\n"
-#      for i in 1...$number_of_movies
-#        out.print $neighborhood[i].inspect, "\n"
-#      end
-#      out.print "*" * 100, "\n"
-#      expectations_generated.each{ |x|
-#        out.print x.inspect, "\n"
-#      }
-#    end
-
-
+    result_with_rounding = Math.sqrt( result_with_rounding.to_f / expectations_generated.size.to_f )
+    result_without_rounding = Math.sqrt( result_without_rounding.to_f / expectations_generated.size.to_f )
+    #print "Error with rounding = ", result_with_rounding, ",\n" , "Error without rounding = " , result_without_rounding , ",\nNumber of ratings of absolute difference [0, 1, 2, 3, 4, 5] ", error.inspect, ",\n"
+    printf "\nError with rounding = %s,\nError without rounding = %s,
+            \nNumber of ratings of absolute differences %s %s\n",
+            result_with_rounding.to_s, result_without_rounding.to_s,
+            [0, 1, 2, 3, 4, 5].inspect, error.inspect
+    return [result_without_rounding, result_with_rounding]
   end
 
 

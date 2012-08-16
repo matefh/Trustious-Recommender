@@ -2,9 +2,12 @@
 
 
 module LinearAlgebra
-  def dot_product(vec1, vec2)
+  def dot_product(vec1, vec2, weight=nil)
     result = 0
-    zipped_vector = vec1.zip(vec2)
+    if weight.nil?
+      weight = [1] * vec1.size
+    end
+    zipped_vector = weight.zip(vec1, vec2)
     for elem in zipped_vector
       prod_result = 1
       elem.each {|x| prod_result *= x}
@@ -14,13 +17,13 @@ module LinearAlgebra
   end
 
 
-  def magnitude_squared(vec)
-    return dot_product(vec, vec)
+  def magnitude_squared(vec, weight=nil)
+    return dot_product(vec, vec, weight)
   end
 
 
-  def magnitude(vec)
-    return Math.sqrt(magnitude_squared(vec))
+  def magnitude(vec, weight=nil)
+    return Math.sqrt(magnitude_squared(vec, weight))
   end
 
 
