@@ -15,6 +15,7 @@ class Tests < Test::Unit::TestCase
   RAND_MOD = 75134177
   $rand_rec = 10007
   TEST_USERBASED = true
+  FOLDS = 5
 
 
   def my_rand(last)
@@ -57,7 +58,7 @@ class Tests < Test::Unit::TestCase
   end
 
 
-  def test_cross_validation(infile = "train.data", folds = 5)
+  def test_cross_validation(infile = "train.data", folds = FOLDS)
     seperator = "-----------------------------"
     input_lines = IO.readlines(infile)
     n_users = input_lines[0].split(" ")[0].to_i

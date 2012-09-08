@@ -31,8 +31,11 @@ module ItemToItem
           movie1_ratings = common_users.map {|user| get_rating(user, movie1)}
           movie2_ratings = common_users.map {|user| get_rating(user, movie2)}
 
-         # weights = common_users.map {|user| Math.log($number_of_movies.to_f / $movies_of_user[user].size.to_f)}
-          similarity = calculate_similarity(movie1_ratings, movie2_ratings)
+          if $weighting
+          then
+            weights = common_users.map {|user| 1 + Math.log($number_of_movies.to_f / $movies_of_user[user].size.to_f)}
+          end
+          similarity = calculate_similarity(movie1_ratings, movie2_ratings, weights)
           similarity *= [$alpha, common_users.size].min / $alpha.to_f
           if similarity > -EPSILON
           then
@@ -102,8 +105,11 @@ module UserToUser
           user1_ratings = common_movies.map {|movie| get_rating(user1, movie)}
           user2_ratings = common_movies.map {|movie| get_rating(user2, movie)}
 
-         # weights = common_movies.map {|movie| Math.log($number_of_users.to_f / $users_of_movie[movie].size.to_f)}
-          similarity = calculate_similarity(user1_ratings, user2_ratings)
+          if $weighting
+          then
+            weights = common_movies.map {|movie| 1 + Math.log($number_of_users.to_f / $users_of_movie[movie].size.to_f)}
+          end
+          similarity = calculate_similarity(user1_ratings, user2_ratings, weights)
           similarity *= [$alpha, common_movies.size].min / $alpha.to_f
           if similarity > -EPSILON
           then
@@ -124,7 +130,7 @@ module UserToUser
     recommended_movies -= $movies_of_user[user]
     recommended_movies.map! {|movie| [expected_rating_userbased(user, movie), movie]}
     recommended_movies.sort! {|x,y| y <=> x}
-    return recommended_movies[0...number_of_needed_recommendations].map {|x| x[1]}
+    return recommended_movies[0...number_of_needed_recommendations]#.map {|x| x[1]}
   end
 
 

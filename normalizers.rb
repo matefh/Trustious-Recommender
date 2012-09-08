@@ -6,9 +6,11 @@ include Similarity
 module Normalizer
 
   $threshold = 0.3
-  $alpha = 1
+  $alpha = 5
   $item_based_normalization = false
   $normalizing_rating = true
+  $weighting = true
+
 
   def set_threshold(x)
     $threshold = x

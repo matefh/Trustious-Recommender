@@ -7,7 +7,7 @@ module Input
 
   $itembased_precomputed = false
   $userbased_precomputed = false
-  Hashed_Data = true
+  Hashed_Data = false
   DEBUG = false
 
   def set_itembased_precomputed(x)
