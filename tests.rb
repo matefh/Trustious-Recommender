@@ -6,7 +6,7 @@ require './recommender.rb'
 require './statistics.rb'
 require './input.rb'
 require 'test/unit'
-include LinearAlgebra, Similarity, ItemToItem, Statistics, Input, UserToUser
+include LinearAlgebra, Similarity, ItemToItem, Statistics, Input, UserToUser, SVD
 
 class Tests < Test::Unit::TestCase
 
@@ -92,7 +92,7 @@ class Tests < Test::Unit::TestCase
     File.delete "testing_set.data"
     result[0] = result[0] / folds.to_f
     result[1] = result[1] / folds.to_f
-    printf "\n\nAverage Error for the cross validation testing\n%s\nError with rounding = %f,\nError without rounding = %f\n%s\n", seperator, result[1], result[0], seperator
+    printf "\n\nAverage Error for the cross validation testing\n%s\nError with rounding = %s,\nError without rounding = %s\n%s\n", seperator, result[1].to_s, result[0].to_s, seperator
     printf "%d-fold Cross Validation Ended\n\n", folds
   end
 
@@ -139,6 +139,43 @@ class Tests < Test::Unit::TestCase
             result_with_rounding.to_s, result_without_rounding.to_s,
             Array(0...error.size).inspect, error.inspect
     return [result_without_rounding, result_with_rounding]
+  end
+
+
+  def test_svd(train_file = "train.data", test_file = "test.data")
+    for dim in 1...20
+      set_dimensionality(dim)
+      SVD.offline_stage_svd(train_file)
+      result_with_rounding = 0
+      result_without_rounding = 0
+      error = Array.new(8) {0}
+      expectations_generated = Array.new(0)
+      File.open(test_file, "r").each_line{ |line|
+        parse = line.split(" ")
+        user = parse[0].to_i
+        movie = parse[1].to_i
+        correct_rating = parse[2].to_i
+
+        rating = expected_rating_svd(user, movie)
+        one_expectation = [user, movie]
+        one_expectation.push(correct_rating)
+        result_without_rounding += (rating - correct_rating) * (rating - correct_rating)
+        one_expectation.push(rating)
+        rating = (rating + 0.5).to_i
+        one_expectation.push(rating)
+        result_with_rounding += (rating - correct_rating) * (rating - correct_rating)
+        if (rating - correct_rating).abs < 8
+          error[(rating - correct_rating).abs] += 1
+        end
+        expectations_generated.push(one_expectation)
+      }
+      result_with_rounding = Math.sqrt( result_with_rounding.to_f / expectations_generated.size.to_f )
+      result_without_rounding = Math.sqrt( result_without_rounding.to_f / expectations_generated.size.to_f )
+      printf "dimensionality = %d\nError with rounding = %s, Error without rounding = %s,
+              \nNumber of ratings of absolute differences %s %s\n", dim,
+              result_with_rounding.to_s, result_without_rounding.to_s,
+              Array(0...error.size).inspect, error.inspect
+    end
   end
 
 
