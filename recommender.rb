@@ -148,3 +148,62 @@ module UserToUser
     return output_rating
   end
 end
+
+
+module SVD
+  $gamma = 0.005
+  $lambda = 0.005
+  $iterations = 50
+  $dim = 20
+
+  def set_dimensionality(dim)
+    $dim = dim
+  end
+
+  def set_learning_rate(rate)
+    $gamma = rate
+  end
+
+  def set_regulizer(lam)
+    $lambda = lam
+  end
+
+  def set_iterations(it)
+    $iterations = it
+  end
+
+
+  def offline_stage_svd(infile)
+    Input.read_ratings(infile)
+    count = 0
+    tot = 0
+    $rated_movies_per_user.each {|key, value|
+      count += 1
+      tot += value
+    }
+    $mu = tot.to_f / count
+    coeff2 = 1 - $gamma * $lambda
+
+    $b = Array.new($number_of_movies, 0.5)
+    $c = Array.new($number_of_users, 0.5)
+    $p = Array.new($number_of_users, Array.new($dim, 0.5))
+    $q = Array.new($number_of_movies, Array.new($dim, 0.5))
+
+    for _ in 0...$iterations
+      $rated_movies_per_user.each {|key, value|
+        user = key[0]
+        item = key[1]
+        eui = $rated_movies_per_user[[user, item]] - ($mu + $c[user] + $b[item] + dot_product($q[item], $p[user]))
+        coeff1 = $gamma * eui
+        $b[item], $c[user] = coeff1 + coeff2 * $b[item], coeff1 + coeff2 * $c[user]
+        $q[item], $p[user] = vector_add(vector_scalar_mult($p[user], coeff1), vector_scalar_mult($q[item], coeff2)),
+                             vector_add(vector_scalar_mult($q[item], coeff1), vector_scalar_mult($p[user], coeff2))
+      }
+    end
+  end
+
+
+  def expected_rating_svd(user, item)
+    return $mu + $c[user] + $b[item] + dot_product($q[item], $p[user])
+  end
+end
