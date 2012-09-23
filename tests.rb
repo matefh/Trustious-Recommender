@@ -58,7 +58,7 @@ class Tests < Test::Unit::TestCase
   end
 
 
-  def test_cross_validation(infile = "train.data", folds = FOLDS)
+  def test_cross_validation(infile = "u.data", folds = FOLDS)
     seperator = "-----------------------------"
     input_lines = IO.readlines(infile)
     n_users = input_lines[0].split(" ")[0].to_i
@@ -93,7 +93,7 @@ class Tests < Test::Unit::TestCase
     File.delete "testing_set.data"
     result[0] = result[0] / folds.to_f
     result[1] = result[1] / folds.to_f
-    printf "\n\nAverage Error for the cross validation testing\n%s\nError with rounding = %s,\nError without rounding = %s\n%s\n", seperator, result[1].to_s, result[0].to_s, seperator
+    printf "\n\nAverage Error for the cross validation testing\n%s\nError with rounding = %s, Error without rounding = %s\n%s\n", seperator, result[1].to_s, result[0].to_s, seperator
     printf "%d-fold Cross Validation Ended\n\n", folds
   end
 
@@ -144,11 +144,17 @@ class Tests < Test::Unit::TestCase
 
 
   def test_cross_validation_svd
-    for dim in 1...20
-      printf "Dimensionality = %d\n", dim
-      set_dimensionality(dim)
-      test_cross_validation
-      printf "\n\n\n"
+    for lam in [0.001, 0.005, 0.1, 0.2, 0.25]
+      for gamma in [0.0001, 0.001, 0.005, 0.01]
+        for dim in 1..5
+          printf "Dimensionality = %d, Gamma = %s, Lambda = %s\n", dim, gamma.to_s, lam.to_s
+          set_dimensionality(dim)
+          set_learning_rate(gamma)
+          set_regulizer(lam)
+          test_cross_validation
+          printf "\n\n"
+        end
+      end
     end
   end
 
