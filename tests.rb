@@ -81,8 +81,9 @@ class Tests < Test::Unit::TestCase
       train_file.close
       test_file.close
       taken = taken + ratings_to_take
-      printf "\nTest Number: %d, Fold Size : %d\n%s\n", test_index, ratings_to_take, seperator
-      test_result = test_n_expected_rating("training_set.data", "testing_set.data")
+      #printf "\nTest Number: %d, Fold Size : %d\n%s\n", test_index, ratings_to_take, seperator
+      #test_result = test_n_expected_rating("training_set.data", "testing_set.data")
+      test_result = test_svd("training_set.data", "testing_set.data")
       printf "%s\n", seperator
       result[0] = result[0] + test_result[0]
       result[1] = result[1] + test_result[1]
@@ -142,40 +143,50 @@ class Tests < Test::Unit::TestCase
   end
 
 
-  def test_svd(train_file = "train.data", test_file = "test.data")
+  def test_cross_validation_svd
     for dim in 1...20
+      printf "Dimensionality = %d\n", dim
       set_dimensionality(dim)
-      SVD.offline_stage_svd(train_file)
-      result_with_rounding = 0
-      result_without_rounding = 0
-      error = Array.new(8) {0}
-      expectations_generated = Array.new(0)
-      File.open(test_file, "r").each_line{ |line|
-        parse = line.split(" ")
-        user = parse[0].to_i
-        movie = parse[1].to_i
-        correct_rating = parse[2].to_i
-
-        rating = expected_rating_svd(user, movie)
-        one_expectation = [user, movie]
-        one_expectation.push(correct_rating)
-        result_without_rounding += (rating - correct_rating) * (rating - correct_rating)
-        one_expectation.push(rating)
-        rating = (rating + 0.5).to_i
-        one_expectation.push(rating)
-        result_with_rounding += (rating - correct_rating) * (rating - correct_rating)
-        if (rating - correct_rating).abs < 8
-          error[(rating - correct_rating).abs] += 1
-        end
-        expectations_generated.push(one_expectation)
-      }
-      result_with_rounding = Math.sqrt( result_with_rounding.to_f / expectations_generated.size.to_f )
-      result_without_rounding = Math.sqrt( result_without_rounding.to_f / expectations_generated.size.to_f )
-      printf "dimensionality = %d\nError with rounding = %s, Error without rounding = %s,
-              \nNumber of ratings of absolute differences %s %s\n", dim,
-              result_with_rounding.to_s, result_without_rounding.to_s,
-              Array(0...error.size).inspect, error.inspect
+      test_cross_validation
+      printf "\n\n\n"
     end
+  end
+
+
+  def test_svd(train_file = "train.data", test_file = "test.data")
+    SVD.offline_stage_svd(train_file)
+    result_with_rounding = 0
+    result_without_rounding = 0
+    error = Array.new(8) {0}
+    expectations_generated = Array.new(0)
+    File.open(test_file, "r").each_line{ |line|
+      parse = line.split(" ")
+      user = parse[0].to_i
+      movie = parse[1].to_i
+      correct_rating = parse[2].to_i
+
+      rating = expected_rating_svd(user, movie)
+      one_expectation = [user, movie]
+      one_expectation.push(correct_rating)
+      result_without_rounding += (rating - correct_rating) * (rating - correct_rating)
+      one_expectation.push(rating)
+      rating = (rating + 0.5).to_i
+      one_expectation.push(rating)
+      result_with_rounding += (rating - correct_rating) * (rating - correct_rating)
+      if (rating - correct_rating).abs < 8
+        error[(rating - correct_rating).abs] += 1
+      end
+      expectations_generated.push(one_expectation)
+    }
+    result_with_rounding = Math.sqrt( result_with_rounding.to_f / expectations_generated.size.to_f )
+    result_without_rounding = Math.sqrt( result_without_rounding.to_f / expectations_generated.size.to_f )
+=begin
+    printf "Error with rounding = %s, Error without rounding = %s,
+            \nNumber of ratings of absolute differences %s %s\n",
+            result_with_rounding.to_s, result_without_rounding.to_s,
+            Array(0...error.size).inspect, error.inspect
+=end
+    return [result_without_rounding, result_with_rounding]
   end
 
 
