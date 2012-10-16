@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
-require "./normalizers.rb"
-require "gsl"
+require './normalizers'
+require 'set'
+require 'gsl'
 include Normalizer, GSL
 
 module ItemToItem
@@ -210,5 +211,79 @@ module SVD
 
   def expected_rating_svd(user, item)
     return $mu + $c[user] + $b[item] + $q[item].dot($p[user])
+  end
+end
+
+
+module SVDpp
+  $gamma = 0.01
+  $lambda1 = 0.005
+  $lambda2 = 0.005
+  $iterations = 50
+  $dim = 1
+
+  def set_dimensionality(dim)
+    $dim = dim
+  end
+
+  def set_learning_rate(rate)
+    $gamma = rate
+  end
+
+  def set_regulizer(lam)
+    $lambda1 = lam
+  end
+
+  def set_iterations(it)
+    $iterations = it
+  end
+
+
+  def offline_stage_svdpp(infile)
+    Input.read_ratings(infile)
+
+    $b = Array.new($number_of_movies, 0.5)
+    $c = Array.new($number_of_users, 0.5)
+    $p = Array.new($number_of_users, Vector[Array.new($dim, 0.5)])
+    $q = Array.new($number_of_movies, Vector[Array.new($dim, 0.5)])
+    $y = Array.new($number_of_movies, Vector[Array.new($dim, 0.5)])
+    $acc = Array.new($number_of_users, Vector[Array.new($dim, 0)])
+    $cnt = Array.new($number_of_users, 0)
+
+    count, tot = [0, 0]
+    items = Set.new
+    $rated_movies_per_user.each {|key, value|
+      count += 1
+      tot += value
+      user, item = key
+      $cnt[user] += 1
+      items.add item
+    }
+
+    $mu = tot.to_f / count
+
+    coeff2 = 1 - $gamma * $lambda1
+    coeff3 = 1 - $gamma * $lambda2
+    for _ in 0...$iterations
+      $rated_movies_per_user.each {|key, value|
+        user, item = key
+        $acc = Array.new($number_of_users, Vector[Array.new($dim, 0)])
+        $rated_movies_per_user.each {|k, v|
+          u, i = k
+          $acc[u] += $y[i] / sqrt($cnt[u])
+        }
+        eui = $rated_movies_per_user[[user, item]] - ($mu + $c[user] + $b[item] + $q[item].dot($p[user] + $acc[user]))
+        coeff1 = $gamma * eui
+        coeff4 = coeff1 / sqrt($cnt[user])
+        $b[item], $c[user] = coeff1 + coeff2 * $b[item], coeff1 + coeff2 * $c[user]
+        items.each {|j| $y[j] = coeff4 * $q[item] + coeff3 * $y[j]}
+        $q[item], $p[user] = coeff1 * ($p[user] + $acc[user]) + coeff3 * $q[item], coeff1 * $q[item] + coeff3 * $p[user]
+      }
+    end
+  end
+
+
+  def expected_rating_svdpp(user, item)
+    return $mu + $c[user] + $b[item] + $q[item].dot($p[user] + $acc[user])
   end
 end
