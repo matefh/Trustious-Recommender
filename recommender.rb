@@ -1,12 +1,13 @@
 #!/usr/bin/env ruby
 
-require "./normalizers.rb"
-include Normalizer
+require './normalizers'
+require 'set'
+require 'gsl'
+include Normalizer, GSL
 
 module ItemToItem
 
   def offline_stage_itembased(infile)
-
     Input.read_ratings(infile)
 
     if $itembased_precomputed
@@ -28,11 +29,14 @@ module ItemToItem
 
         similar_movies.each{ |movie2|
           common_users = $users_of_movie[movie1] & $users_of_movie[movie2]
-          movie1_ratings = common_users.map {|user| get_rating(user, movie1)}
-          movie2_ratings = common_users.map {|user| get_rating(user, movie2)}
-
-         # weights = common_users.map {|user| Math.log($number_of_movies.to_f / $movies_of_user[user].size.to_f)}
-          similarity = calculate_similarity(movie1_ratings, movie2_ratings)
+          movie1_ratings = Vector[common_users.map {|user| get_rating(user, movie1)}]
+          movie2_ratings = Vector[common_users.map {|user| get_rating(user, movie2)}]
+          weights = []
+          if $weighting
+          then
+            weights << Vector[common_users.map {|user| 1 + Math.log($number_of_movies.to_f / $movies_of_user[user].size.to_f)}]
+          end
+          similarity = calculate_similarity(movie1_ratings, movie2_ratings, weights)
           similarity *= [$alpha, common_users.size].min / $alpha.to_f
           if similarity > -EPSILON
           then
@@ -62,7 +66,11 @@ module ItemToItem
     ratings = rated_movies.map {|m| get_rating(user, m)}
     similarities = rated_movies.map {|m| $movies_similarity[movie][m]}
 
-    output_rating = compute_expected_rating(ratings, similarities)
+    output_rating = 0
+    if ratings.size > 0
+    then
+        output_rating = compute_expected_rating(Vector[ratings], Vector[similarities])
+    end
     if $normalizing_rating
     then
       output_rating = denormalize_rating(output_rating, user, movie)
@@ -77,7 +85,6 @@ end
 
 module UserToUser
   def offline_stage_userbased(infile)
-
     Input.read_ratings(infile)
 
     if $userbased_precomputed
@@ -99,11 +106,14 @@ module UserToUser
         similar_users -= [user1]
         for user2 in similar_users
           common_movies = $movies_of_user[user1] & $movies_of_user[user2]
-          user1_ratings = common_movies.map {|movie| get_rating(user1, movie)}
-          user2_ratings = common_movies.map {|movie| get_rating(user2, movie)}
-
-         # weights = common_movies.map {|movie| Math.log($number_of_users.to_f / $users_of_movie[movie].size.to_f)}
-          similarity = calculate_similarity(user1_ratings, user2_ratings)
+          user1_ratings = Vector[common_movies.map {|movie| get_rating(user1, movie)}]
+          user2_ratings = Vector[common_movies.map {|movie| get_rating(user2, movie)}]
+          weights = []
+          if $weighting
+          then
+            weights << Vector[common_movies.map {|movie| 1 + Math.log($number_of_users.to_f / $users_of_movie[movie].size.to_f)}]
+          end
+          similarity = calculate_similarity(user1_ratings, user2_ratings, weights)
           similarity *= [$alpha, common_movies.size].min / $alpha.to_f
           if similarity > -EPSILON
           then
@@ -124,7 +134,7 @@ module UserToUser
     recommended_movies -= $movies_of_user[user]
     recommended_movies.map! {|movie| [expected_rating_userbased(user, movie), movie]}
     recommended_movies.sort! {|x,y| y <=> x}
-    return recommended_movies[0...number_of_needed_recommendations].map {|x| x[1]}
+    return recommended_movies[0...number_of_needed_recommendations]#.map {|x| x[1]}
   end
 
 
@@ -133,12 +143,147 @@ module UserToUser
     ratings = similar_users.map {|v| get_rating(v, movie)}
     similarities = similar_users.map {|v| $users_similarity[user][v]}
 
-    output_rating = compute_expected_rating(ratings, similarities)
+    output_rating = 0
+    if ratings.size > 0
+    then
+        output_rating = compute_expected_rating(Vector[ratings], Vector[similarities])
+    end
     if $normalizing_rating
     then
       output_rating = denormalize_rating(output_rating, user, movie)
     end
     #output_rating = (output_rating + 0.5).to_i
     return output_rating
+  end
+end
+
+
+module SVD
+  $gamma = 0.01
+  $lambda = 0.005
+  $iterations = 50
+  $dim = 1
+
+  def set_dimensionality(dim)
+    $dim = dim
+  end
+
+  def set_learning_rate(rate)
+    $gamma = rate
+  end
+
+  def set_regulizer(lam)
+    $lambda = lam
+  end
+
+  def set_iterations(it)
+    $iterations = it
+  end
+
+
+  def offline_stage_svd(infile)
+    Input.read_ratings(infile)
+
+    $b = Array.new($number_of_movies, 0.5)
+    $c = Array.new($number_of_users, 0.5)
+    $p = Array.new($number_of_users, Vector[Array.new($dim, 0.5)])
+    $q = Array.new($number_of_movies, Vector[Array.new($dim, 0.5)])
+
+    count, tot = [0, 0]
+    $rated_movies_per_user.each {|key, value|
+      count += 1
+      tot += value
+    }
+    $mu = tot.to_f / count
+
+    coeff2 = 1 - $gamma * $lambda
+    for _ in 0...$iterations
+      $rated_movies_per_user.each {|key, value|
+        user, item = key
+        eui = $rated_movies_per_user[[user, item]] - ($mu + $c[user] + $b[item] + $q[item].dot($p[user]))
+        coeff1 = $gamma * eui
+        $b[item], $c[user] = coeff1 + coeff2 * $b[item], coeff1 + coeff2 * $c[user]
+        $q[item], $p[user] = coeff1 * $p[user] + coeff2 * $q[item], coeff1 * $q[item] + coeff2 * $p[user]
+      }
+    end
+  end
+
+
+  def expected_rating_svd(user, item)
+    return $mu + $c[user] + $b[item] + $q[item].dot($p[user])
+  end
+end
+
+
+module SVDpp
+  $gamma = 0.01
+  $lambda1 = 0.005
+  $lambda2 = 0.005
+  $iterations = 50
+  $dim = 1
+
+  def set_dimensionality(dim)
+    $dim = dim
+  end
+
+  def set_learning_rate(rate)
+    $gamma = rate
+  end
+
+  def set_regulizer(lam)
+    $lambda1 = lam
+  end
+
+  def set_iterations(it)
+    $iterations = it
+  end
+
+
+  def offline_stage_svdpp(infile)
+    Input.read_ratings(infile)
+
+    $b = Array.new($number_of_movies, 0.5)
+    $c = Array.new($number_of_users, 0.5)
+    $p = Array.new($number_of_users, Vector[Array.new($dim, 0.5)])
+    $q = Array.new($number_of_movies, Vector[Array.new($dim, 0.5)])
+    $y = Array.new($number_of_movies, Vector[Array.new($dim, 0.5)])
+    $acc = Array.new($number_of_users, Vector[Array.new($dim, 0)])
+    $cnt = Array.new($number_of_users, 0)
+
+    count, tot = [0, 0]
+    items = Set.new
+    $rated_movies_per_user.each {|key, value|
+      count += 1
+      tot += value
+      user, item = key
+      $cnt[user] += 1
+      items.add item
+    }
+
+    $mu = tot.to_f / count
+
+    coeff2 = 1 - $gamma * $lambda1
+    coeff3 = 1 - $gamma * $lambda2
+    for _ in 0...$iterations
+      $rated_movies_per_user.each {|key, value|
+        user, item = key
+        $acc = Array.new($number_of_users, Vector[Array.new($dim, 0)])
+        $rated_movies_per_user.each {|k, v|
+          u, i = k
+          $acc[u] += $y[i] / sqrt($cnt[u])
+        }
+        eui = $rated_movies_per_user[[user, item]] - ($mu + $c[user] + $b[item] + $q[item].dot($p[user] + $acc[user]))
+        coeff1 = $gamma * eui
+        coeff4 = coeff1 / sqrt($cnt[user])
+        $b[item], $c[user] = coeff1 + coeff2 * $b[item], coeff1 + coeff2 * $c[user]
+        items.each {|j| $y[j] = coeff4 * $q[item] + coeff3 * $y[j]}
+        $q[item], $p[user] = coeff1 * ($p[user] + $acc[user]) + coeff3 * $q[item], coeff1 * $q[item] + coeff3 * $p[user]
+      }
+    end
+  end
+
+
+  def expected_rating_svdpp(user, item)
+    return $mu + $c[user] + $b[item] + $q[item].dot($p[user] + $acc[user])
   end
 end

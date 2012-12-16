@@ -6,9 +6,11 @@ include Similarity
 module Normalizer
 
   $threshold = 0.3
-  $alpha = 1
+  $alpha = 5
   $item_based_normalization = false
   $normalizing_rating = true
+  $weighting = true
+
 
   def set_threshold(x)
     $threshold = x
@@ -100,15 +102,14 @@ module Normalizer
   end
 
 
-  def calculate_similarity(vec1, vec2, weight=nil)
-    return cosine_rule(vec1, vec2, weight)
+  def calculate_similarity(vec1, vec2, weights=[])
+    return cosine_rule(vec1, vec2, weights)
   end
 
 
   def compute_expected_rating(rating_list, similarity_list)
-    weighted_rating = dot_product(rating_list, similarity_list)
-    total_similarity = 0
-    similarity_list.each {|similarity| total_similarity += similarity.abs}
+    weighted_rating = rating_list.dot(similarity_list)
+    total_similarity = similarity_list.abs.sum
     if total_similarity.abs > EPSILON
     then
       return weighted_rating.to_f / total_similarity.to_f

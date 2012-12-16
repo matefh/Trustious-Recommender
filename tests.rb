@@ -6,7 +6,8 @@ require './recommender.rb'
 require './statistics.rb'
 require './input.rb'
 require 'test/unit'
-include LinearAlgebra, Similarity, ItemToItem, Statistics, Input, UserToUser
+require 'gsl'
+include LinearAlgebra, Similarity, ItemToItem, Statistics, Input, UserToUser, SVD
 
 class Tests < Test::Unit::TestCase
 
@@ -14,7 +15,8 @@ class Tests < Test::Unit::TestCase
   RAND_CNST = 61283
   RAND_MOD = 75134177
   $rand_rec = 10007
-  TEST_USERBASED = true
+  TEST_USERBASED = false
+  FOLDS = 5
 
 
   def my_rand(last)
@@ -24,31 +26,40 @@ class Tests < Test::Unit::TestCase
 
 
   def test_online_stage
+    set_alpha(2)
     if TEST_USERBASED
     then
       UserToUser.offline_stage_userbased("sample.data")
-      recommended_movies1 = UserToUser.online_stage_userbased(1, 1)
+      recommended_movies = UserToUser.online_stage_userbased(1, 1)
+      error = sprintf "%s\n%s\n", $users_neighborhood.inspect, $users_similarity.inspect
     else
       ItemToItem.offline_stage_itembased("sample.data")
-      recommended_movies1 = ItemToItem.online_stage_itembased(1, 1)
+      recommended_movies = ItemToItem.online_stage_itembased(1, 1)
+      error = sprintf "%s\n%s\n", $movies_neighborhood.inspect, $movies_similarity.inspect
     end
-    assert_equal([5], recommended_movies1, "The recommended movies are wrong")
+    assert_equal([5], recommended_movies, error)
   end
 
 
-=begin
   def test_precomputation
     if TEST_USERBASED
     then
       Input.precompute_userbased('train.data')
+      total_size = 0
+      $users_similarity.each {|adj| total_size += adj.size}
+      assert_equal(total_size, IO.readlines('Precomputed_user_data.txt').size)
+      assert(File.delete('Precomputed_user_data.txt'))
     else
       Input.precompute_itembased('train.data')
+      total_size = 0
+      $movies_similarity.each {|adj| total_size += adj.size}
+      assert_equal(total_size, IO.readlines('Precomputed_item_data.txt').size)
+      assert(File.delete('Precomputed_item_data.txt'))
     end
   end
-=end
 
-
-  def test_cross_validation(infile = "train.data", folds = 5)
+=begin
+  def test_cross_validation(infile = "train.data", folds = FOLDS)
     seperator = "-----------------------------"
     input_lines = IO.readlines(infile)
     n_users = input_lines[0].split(" ")[0].to_i
@@ -73,6 +84,7 @@ class Tests < Test::Unit::TestCase
       taken = taken + ratings_to_take
       printf "\nTest Number: %d, Fold Size : %d\n%s\n", test_index, ratings_to_take, seperator
       test_result = test_n_expected_rating("training_set.data", "testing_set.data")
+      #test_result = test_svd("training_set.data", "testing_set.data")
       printf "%s\n", seperator
       result[0] = result[0] + test_result[0]
       result[1] = result[1] + test_result[1]
@@ -82,9 +94,10 @@ class Tests < Test::Unit::TestCase
     File.delete "testing_set.data"
     result[0] = result[0] / folds.to_f
     result[1] = result[1] / folds.to_f
-    printf "\n\nAverage Error for the cross validation testing\n%s\nError with rounding = %f,\nError without rounding = %f\n%s\n", seperator, result[1], result[0], seperator
+    printf "\n\nAverage Error for the cross validation testing\n%s\nError with rounding = %s, Error without rounding = %s\n%s\n", seperator, result[1].to_s, result[0].to_s, seperator
     printf "%d-fold Cross Validation Ended\n\n", folds
   end
+=end
 
 
   def test_n_expected_rating(train_file = "train.data", test_file = "test.data")
@@ -97,7 +110,7 @@ class Tests < Test::Unit::TestCase
 
     result_with_rounding = 0
     result_without_rounding = 0
-    error = Array.new(6) {0}
+    error = Array.new(8) {0}
     expectations_generated = Array.new(0)
     File.open(test_file, "r").each_line{ |line|
       parse = line.split(" ")
@@ -127,11 +140,65 @@ class Tests < Test::Unit::TestCase
     printf "\nError with rounding = %s,\nError without rounding = %s,
             \nNumber of ratings of absolute differences %s %s\n",
             result_with_rounding.to_s, result_without_rounding.to_s,
-            [0, 1, 2, 3, 4, 5].inspect, error.inspect
+            Array(0...error.size).inspect, error.inspect
     return [result_without_rounding, result_with_rounding]
   end
 
 
+=begin
+  def test_cross_validation_svd
+    for lam in [0.001, 0.005, 0.1, 0.2, 0.25]
+      for gamma in [0.0001, 0.001, 0.005, 0.01]
+        for dim in 1..5
+          printf "Dimensionality = %d, Gamma = %s, Lambda = %s\n", dim, gamma.to_s, lam.to_s
+          set_dimensionality(dim)
+          set_learning_rate(gamma)
+          set_regulizer(lam)
+          test_cross_validation
+          printf "\n\n"
+        end
+      end
+    end
+  end
+
+
+  def test_svd(train_file = "train.data", test_file = "test.data")
+    SVD.offline_stage_svd(train_file)
+    result_with_rounding = 0
+    result_without_rounding = 0
+    error = Array.new(8) {0}
+    expectations_generated = Array.new(0)
+    File.open(test_file, "r").each_line{ |line|
+      parse = line.split(" ")
+      user = parse[0].to_i
+      movie = parse[1].to_i
+      correct_rating = parse[2].to_i
+
+      rating = expected_rating_svd(user, movie)
+      one_expectation = [user, movie]
+      one_expectation.push(correct_rating)
+      result_without_rounding += (rating - correct_rating) * (rating - correct_rating)
+      one_expectation.push(rating)
+      rating = (rating + 0.5).to_i
+      one_expectation.push(rating)
+      result_with_rounding += (rating - correct_rating) * (rating - correct_rating)
+      if (rating - correct_rating).abs < 8
+        error[(rating - correct_rating).abs] += 1
+      end
+      expectations_generated.push(one_expectation)
+    }
+    result_with_rounding = Math.sqrt( result_with_rounding.to_f / expectations_generated.size.to_f )
+    result_without_rounding = Math.sqrt( result_without_rounding.to_f / expectations_generated.size.to_f )
+    printf "Error with rounding = %s, Error without rounding = %s,
+            \nNumber of ratings of absolute differences %s %s\n",
+            result_with_rounding.to_s, result_without_rounding.to_s,
+            Array(0...error.size).inspect, error.inspect
+    return [result_without_rounding, result_with_rounding]
+  end
+=end
+
+
+=begin
   def test_dot_product
     val1 = LinearAlgebra.dot_product([1, 2, 3, 4], [5, 1, 2, 3])
     val2 = LinearAlgebra.dot_product([1, 6, 101, 2, 121], [-1, 2, 1, 3, -10007])
@@ -217,11 +284,12 @@ class Tests < Test::Unit::TestCase
 
     results.each {|val| assert_equal(val[0], val[1])}
   end
+=end
 
 
   def test_cosine_rule
-    users1 = [[1, 4, 5, 2, 1], [5, -1, 2, 4, 10], [42134, 123, 123], []]
-    users2 = [[0, -4, 1, 2, 1], [51, 12, 4, -101, 123], [23, 1, 12], []]
+    users1 = [[1, 4, 5, 2, 1], [5, -1, 2, 4, 10], [42134, 123, 123]]
+    users2 = [[0, -4, 1, 2, 1], [51, 12, 4, -101, 123], [23, 1, 12]]
 
     users1 << [123, 1007, 10007, 231]
     users2 << [123, 1007, 10007, 231]
@@ -230,8 +298,9 @@ class Tests < Test::Unit::TestCase
     users1 << [1, 2, 3, 4]
     users2 << [-12, -3, 2, 3]
 
-    actual_values = [-0.18659, 0.53180899, 0.8873811, 0, 1, -1, 0]
-    expected_values = users1.zip(users2).map {|x| Similarity.cosine_rule(x[0], x[1])}
+    actual_values = [-0.18659, 0.53180899, 0.8873811, 1, -1, 0]
+    expected_values = users1.zip(users2).map {|x| Similarity.cosine_rule(Vector[x[0]], Vector[x[1]])}
+    #puts actual_values.inspect, expected_values.inspect
     diff = actual_values.zip(expected_values).map {|sim| sim[0] - sim[1]}
 
     diff.each {|val| assert(val.abs < 1e-5)}
@@ -239,8 +308,8 @@ class Tests < Test::Unit::TestCase
 
 
   def test_pearson_correlation
-    users1 = [[1, 4, 5, 2, 1], [5, -1, 2, 4, 10], [42134, 123, 123], []]
-    users2 = [[0, -4, 1, 2, 1], [51, 12, 4, -101, 123], [23, 1, 12], []]
+    users1 = [[1, 4, 5, 2, 1], [5, -1, 2, 4, 10], [42134, 123, 123]]
+    users2 = [[0, -4, 1, 2, 1], [51, 12, 4, -101, 123], [23, 1, 12]]
 
     users1 << [123, 1007, 10007, 231]
     users2 << [123, 1007, 10007, 231]
@@ -249,8 +318,8 @@ class Tests < Test::Unit::TestCase
     users1 << [1, 2, 3, 4]
     users2 << [-12, -3, 2, 3]
 
-    actual_values = [-0.352089, 0.54511, 0.8660254, 0, 1, -1, 0.9415544]
-    expected_values = users1.zip(users2).map {|x| Similarity.pearson_correlation(x[0], x[1])}
+    actual_values = [-0.352089, 0.54511, 0.8660254, 1, -1, 0.9415544]
+    expected_values = users1.zip(users2).map {|x| Similarity.pearson_correlation(Vector[x[0]], Vector[x[1]])}
     diff = actual_values.zip(expected_values).map {|sim| sim[0] - sim[1]}
 
     diff.each {|val| assert(val.abs < 1e-5)}
@@ -258,17 +327,17 @@ class Tests < Test::Unit::TestCase
 
 
   def test_compute_expected_rating
-    ratings = [[1, 4, -1, 2, 0], [1, 2, 4, 0], [5, 5, 5, 5, 5], [0, 0, 1, -1, 0], []]
-    similarities = [[0.2, 0.1, 0.7, 0, 1], [0.3, -0.2, 0.4, 1], [0.1, 0.1, 0.2, 0.1, 0.1], [0.7, 0.7, 0.5, 0.6, 0.1], []]
-    expected_values = ratings.zip(similarities).map {|param| compute_expected_rating(param[0], param[1])}
-    actual_values = [-0.0499999, 0.78947, 5.0, -0.0384615, 0]
+    ratings = [[1, 4, -1, 2, 0], [1, 2, 4, 0], [5, 5, 5, 5, 5], [0, 0, 1, -1, 0]]
+    similarities = [[0.2, 0.1, 0.7, 0, 1], [0.3, -0.2, 0.4, 1], [0.1, 0.1, 0.2, 0.1, 0.1], [0.7, 0.7, 0.5, 0.6, 0.1]]
+    expected_values = ratings.zip(similarities).map {|param| compute_expected_rating(Vector[param[0]], Vector[param[1]])}
+    actual_values = [-0.0499999, 0.78947, 5.0, -0.0384615]
 
     diff = actual_values.zip(expected_values).map {|sim| sim[0] - sim[1]}
-
     diff.each {|val| assert(val.abs < 1e-5)}
   end
 
 
+=begin
   def test_standard_deviation
     values = [[5, 1, 2, 5, 7], [3, 3, 3, 3], [6, 11, 100, 2, 3], [4, 1, 6], []]
     actual_std = [2.1908902300206643, 0.0, 37.92940811560339, 2.0548046676563256, 0]
@@ -300,4 +369,5 @@ class Tests < Test::Unit::TestCase
 
     diff.each {|val| assert(val.abs < 1e-5)}
   end
+=end
 end
